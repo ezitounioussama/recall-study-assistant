@@ -11,7 +11,7 @@ working and tested.
 | 4 | `feat/documents-rag` | Upload (txt/md/pdf), paragraph-aware chunking with overlap, nomic embeddings through Ollama, cosine search scoped to the owner | merged, #3 |
 | 5 | `feat/chat-streaming` | SSE stream: numbered sources first, then tokens, then a `done` with `grounded`; a fixed refusal when retrieval finds nothing, decided before any model call | merged, #4 |
 | 6 | `feat/spaced-repetition` | FSRS-5 scheduler (stability, difficulty, retrievability), learning/review/relearning state machine, card generation from chunks, review API with four-button preview, stats | merged, #5 |
-| 7 | `feat/web-app` | Next.js app in the Apple design language: marketing tiles, chat, library, review session | |
+| 7 | `feat/web-app` | The app: library with upload and card generation, streaming chat with numbered sources and citation chips, FSRS review session with four-button preview; landing rebuilt with MagicUI (device mockups with live UI, bento, blur-fade, number tickers, dock navigation) | merged, #6 |
 | 8 | `ci` | GitHub Actions: lint, type-check, backend tests, frontend build, design-token check |
 
 ## Why this is not the earlier study-assistant service

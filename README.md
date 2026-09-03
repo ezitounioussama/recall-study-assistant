@@ -40,13 +40,19 @@ again resets that password rather than failing.
 
 | | |
 |---|---|
-| Landing page | the reference page's grammar: two-tone product name, 40px/400 claims, grey lead copy with ink emphasis, one dark band |
-| Auth | registration, login, logout, `/auth/me` — argon2id hashing, signed HttpOnly session cookies, server-side session records |
-| Design system | 76 assertions that the CSS still matches the specification |
-| Tests | 15 auth tests, all passing |
+| Library | drop `.txt` / `.md` / `.pdf`; it is chunked and embedded locally (nomic-embed-text through Ollama). One click writes flashcards from every passage. |
+| Ask | answers stream in over SSE; the passages they came from appear first, numbered, and every `[n]` in the answer is a chip that lights up its source. A question your notes do not cover gets a fixed refusal, decided by retrieval before any model is asked. |
+| Review | FSRS-5: stability, difficulty, retrievability per card. Four ratings, each showing the interval it would produce; Space and 1–4 on the keyboard; a deck-wide recall gauge. |
+| Landing | the reference page's grammar, with the product shown working: live miniatures of chat and review inside Safari and iPhone frames, a bento of four differences, blur-fade reveals, number tickers, a macOS-style dock for the app's navigation — the MagicUI components, vendored and re-coloured to the design tokens. |
+| Auth | registration, login, logout, `/auth/me` — argon2id hashing, signed HttpOnly session cookies, server-side session records. |
+| Tests | 92 API tests (auth, documents, chat, FSRS, cards); 76 design-token assertions; `next build`, `tsc` and `eslint` clean. |
 
-`/library`, `/chat` and `/review` are styled placeholders that name the pull
-request which builds them. See [`docs/roadmap.md`](docs/roadmap.md).
+![the library](docs/screens/library.png)
+![asking a question](docs/screens/chat.png)
+![a review card](docs/screens/review.png)
+
+Models: `llama3.2:3b` answers in seconds on a CPU; set `CHAT_MODEL=qwen3:8b` in
+`api/.env` for better answers. Both need `ollama pull`.
 
 ## Design
 
