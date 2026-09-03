@@ -1,0 +1,287 @@
+@import "tailwindcss";
+
+/* ===========================================================================
+   Design tokens — transcribed from docs/design-language.md
+   ===========================================================================
+
+   Every value below comes from the spec's YAML front matter. Nothing is
+   invented and nothing is rounded to a "nicer" number: 17px body and 11px
+   radius look arbitrary and are the point, because that is what the system
+   specifies.
+
+   Tailwind v4 is configured here rather than in a JS file, so @theme is both
+   the Tailwind theme and the CSS custom-property layer. One source of truth.
+
+   Two deliberate deviations from the source, both sanctioned by the spec's
+   own "Note on Font Substitutes":
+     - Inter replaces SF Pro Display / SF Pro Text off-Apple platforms, after
+       system-ui in the stack so real SF Pro still wins on macOS/iOS.
+     - Display sizes carry an extra -0.01em, and body line-height drops from
+       1.47 to 1.44, because Inter tracks wider and has a taller x-height.
+   =========================================================================== */
+
+@theme {
+  /* --- colour: one accent, three of it ---------------------------------- */
+  --color-primary: #0066cc; /* Action Blue — every interactive element */
+  --color-primary-focus: #0071e3; /* keyboard focus ring only */
+  --color-primary-on-dark: #2997ff; /* Sky Link Blue — dark tiles only */
+
+  /* --- colour: ink ------------------------------------------------------ */
+  --color-ink: #1d1d1f; /* not pure black: keeps the page photographic */
+  --color-body: #1d1d1f;
+  --color-body-on-dark: #ffffff;
+  --color-body-muted: #cccccc; /* secondary copy on dark tiles */
+  --color-ink-muted-80: #333333;
+  --color-ink-muted-48: #7a7a7a; /* disabled text, legal fine print */
+
+  /* --- colour: hairlines ------------------------------------------------ */
+  --color-divider-soft: #f0f0f0;
+  --color-hairline: #e0e0e0;
+
+  /* --- colour: surfaces ------------------------------------------------- */
+  --color-canvas: #ffffff;
+  --color-canvas-parchment: #f5f5f7; /* the signature Apple off-white */
+  --color-surface-pearl: #fafafc;
+  --color-surface-tile-1: #272729;
+  --color-surface-tile-2: #2a2a2c; /* a micro-step lighter than tile-1 */
+  --color-surface-tile-3: #252527; /* a micro-step darker */
+  --color-surface-black: #000000; /* global nav, video, true void */
+  --color-surface-chip-translucent: #d2d2d7;
+  --color-on-primary: #ffffff;
+  --color-on-dark: #ffffff;
+
+  /* --- type families ---------------------------------------------------- */
+  /* system-ui first, so real SF Pro wins on macOS and iOS. Inter arrives
+     via next/font in layout.tsx, which self-hosts it — a Google Fonts
+     @import would also have to precede every rule in this file, and CSS
+     enforces that. */
+  --font-display: "SF Pro Display", system-ui, -apple-system, var(--font-inter), sans-serif;
+  --font-text: "SF Pro Text", system-ui, -apple-system, var(--font-inter), sans-serif;
+
+  /* --- type scale ------------------------------------------------------- */
+  --text-hero-display: 56px;
+  --text-hero-display--line-height: 1.07;
+  --text-hero-display--letter-spacing: -0.28px;
+  --text-hero-display--font-weight: 600;
+
+  --text-display-lg: 40px;
+  --text-display-lg--line-height: 1.1;
+  --text-display-lg--letter-spacing: 0;
+  --text-display-lg--font-weight: 600;
+
+  --text-display-md: 34px;
+  --text-display-md--line-height: 1.47;
+  --text-display-md--letter-spacing: -0.374px;
+  --text-display-md--font-weight: 600;
+
+  --text-lead: 28px;
+  --text-lead--line-height: 1.14;
+  --text-lead--letter-spacing: 0.196px;
+  --text-lead--font-weight: 400;
+
+  /* weight 300 is real and rare — an airy-atmosphere cue, not an accident */
+  --text-lead-airy: 24px;
+  --text-lead-airy--line-height: 1.5;
+  --text-lead-airy--letter-spacing: 0;
+  --text-lead-airy--font-weight: 300;
+
+  --text-tagline: 21px;
+  --text-tagline--line-height: 1.19;
+  --text-tagline--letter-spacing: 0.231px;
+  --text-tagline--font-weight: 600;
+
+  --text-body-strong: 17px;
+  --text-body-strong--line-height: 1.24;
+  --text-body-strong--letter-spacing: -0.374px;
+  --text-body-strong--font-weight: 600;
+
+  /* 17px, not 16px. The extra pixel is the brand's reading pace. */
+  --text-body: 17px;
+  --text-body--line-height: 1.44;
+  --text-body--letter-spacing: -0.374px;
+  --text-body--font-weight: 400;
+
+  /* 2.41 leading is not a typo — it is how dense footer columns breathe */
+  --text-dense-link: 17px;
+  --text-dense-link--line-height: 2.41;
+  --text-dense-link--letter-spacing: 0;
+  --text-dense-link--font-weight: 400;
+
+  --text-caption: 14px;
+  --text-caption--line-height: 1.43;
+  --text-caption--letter-spacing: -0.224px;
+  --text-caption--font-weight: 400;
+
+  --text-caption-strong: 14px;
+  --text-caption-strong--line-height: 1.29;
+  --text-caption-strong--letter-spacing: -0.224px;
+  --text-caption-strong--font-weight: 600;
+
+  --text-button-large: 18px;
+  --text-button-large--line-height: 1;
+  --text-button-large--letter-spacing: 0;
+  --text-button-large--font-weight: 300;
+
+  --text-button-utility: 14px;
+  --text-button-utility--line-height: 1.29;
+  --text-button-utility--letter-spacing: -0.224px;
+  --text-button-utility--font-weight: 400;
+
+  --text-fine-print: 12px;
+  --text-fine-print--line-height: 1;
+  --text-fine-print--letter-spacing: -0.12px;
+  --text-fine-print--font-weight: 400;
+
+  --text-micro-legal: 10px;
+  --text-micro-legal--line-height: 1.3;
+  --text-micro-legal--letter-spacing: -0.08px;
+  --text-micro-legal--font-weight: 400;
+
+  --text-nav-link: 12px;
+  --text-nav-link--line-height: 1;
+  --text-nav-link--letter-spacing: -0.12px;
+  --text-nav-link--font-weight: 400;
+
+  /* --- radii: four grammars, nothing in between ------------------------- */
+  --radius-none: 0px;
+  --radius-xs: 5px;
+  --radius-sm: 8px; /* compact utility buttons */
+  --radius-md: 11px; /* the rare Pearl capsule */
+  --radius-lg: 18px; /* utility cards */
+  --radius-pill: 9999px; /* the signature action pill */
+
+  /* --- spacing ---------------------------------------------------------- */
+  --spacing-xxs: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 17px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+  --spacing-section: 80px;
+
+  /* --- elevation: exactly one shadow in the whole system ---------------- */
+  /* Reserved for product imagery resting on a surface. Never cards, never
+     buttons, never text. If you are reaching for this on a card, alternate
+     the surface colour instead. */
+  --shadow-product: 3px 5px 30px 0 rgba(0, 0, 0, 0.22);
+
+  /* --- breakpoints, from the spec's structural list --------------------- */
+  --breakpoint-phone: 640px;
+  --breakpoint-tablet: 734px;
+  --breakpoint-tablet-landscape: 834px;
+  --breakpoint-desktop-sm: 1068px;
+  --breakpoint-desktop: 1440px;
+}
+
+
+/* ---------------------------------------------------------------------------
+   Base
+   --------------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* The nav is sticky, so anchored sections need to clear it: 44px global
+     nav + 52px sub-nav. */
+  scroll-padding-top: 96px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-text);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  letter-spacing: var(--text-body--letter-spacing);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* ss03 gives Inter a rounded "a", closer to SF Pro's character. */
+  font-feature-settings: "ss03";
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  /* balance stops a two-word headline orphaning its last word */
+  text-wrap: balance;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+  /* pretty prevents a single-word last line in body copy */
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+/* The one system-wide micro-interaction: press shrinks. Applied to anything
+   that reads as a button. Hover is deliberately not styled — the spec says
+   default and pressed states only. */
+button,
+[role="button"],
+a[data-pressable] {
+  transition: transform 120ms ease-out;
+}
+
+button:active,
+[role="button"]:active,
+a[data-pressable]:active {
+  transform: scale(0.95);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Utilities the token layer cannot express
+   --------------------------------------------------------------------------- */
+
+/* Frosted sub-nav and sticky bar. The spec leaves the blur radius
+   unformalised and names saturate(180%) blur(20px) as the production
+   baseline, so that is what is used. */
+.frosted {
+  background-color: color-mix(in srgb, var(--color-canvas-parchment) 80%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* Full-bleed tile. Edge-to-edge with zero gap between siblings — the surface
+   colour change is the divider, so there is no border and no radius. */
+.tile {
+  padding-block: var(--spacing-section);
+  padding-inline: var(--spacing-lg);
+  border-radius: var(--radius-none);
+}
+
+@media (max-width: 640px) {
+  .tile {
+    /* the spec tightens section padding to 48px at small phone */
+    padding-block: var(--spacing-xxl);
+  }
+}
