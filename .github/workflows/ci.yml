@@ -1,0 +1,58 @@
+# Two jobs, one per half of the repo. They run in parallel and neither needs
+# a model: the API tests use the hash embedder and a scripted chat model, and
+# the web build touches no network.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: api · pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: api/requirements.txt
+      - run: uv venv --python 3.12 .venv
+      - run: uv pip install --python .venv/bin/python -r requirements.txt
+      - name: pytest
+        env:
+          SESSION_SECRET: ci-only-secret-that-is-long-enough-to-pass-validation
+        run: .venv/bin/python -m pytest -q
+
+  web:
+    name: web · typecheck, lint, tokens, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test:tokens
+      - name: next build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8100
+        run: pnpm build
