@@ -53,9 +53,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               aria-label="Sign out"
               title="Sign out"
               className="text-lead-grey"
-              onClick={async () => {
-                await signOut();
+              onClick={() => {
+                // Navigate first: once the session is cleared, RequireAuth
+                // would bounce this page to /sign-in before the push to "/"
+                // landed, and signing out would look like being locked out.
                 router.push("/");
+                void signOut();
               }}
             >
               <SignOutIcon className="size-[60%]" />

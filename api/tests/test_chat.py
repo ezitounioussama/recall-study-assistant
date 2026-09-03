@@ -123,6 +123,21 @@ class TestGroundedAnswer:
         assert len(messages) == HISTORY_TURNS + 1
         assert messages[0]["content"] == f"turn {20 - HISTORY_TURNS}"
 
+    async def test_a_follow_up_retrieves_with_the_previous_question(self, signed_in, model):
+        """"What about them?" alone matches nothing; with the last user turn it finds the passage."""
+        await upload(signed_in, content=BIOLOGY)
+        cold = await ask(signed_in, "what about them?")
+        assert by_type(cold, "sources") == [[]]
+
+        warm = await ask(
+            signed_in,
+            "what about them?",
+            history=[{"role": "user", "content": "tell me about mitochondria, ATP and oxidative phosphorylation"}, {"role": "assistant", "content": "They make ATP."}],
+        )
+        assert by_type(warm, "sources")[0], "the previous question should carry the topic into retrieval"
+        _, messages = model.calls[-1]
+        assert messages[-1]["content"] == "what about them?", "the model still sees the question as asked"
+
     async def test_document_filter_restricts_sources(self, signed_in, model):
         bio = (await upload(signed_in, name="bio.md", content=BIOLOGY)).json()
         await upload(signed_in, name="hist.md", content=HISTORY)

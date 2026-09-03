@@ -48,7 +48,7 @@ HISTORY_TURNS = 6
 # alone would not.
 SYSTEM_PROMPT = """You are Recall, a study assistant. The student is asking about their own notes. Below are numbered passages from those notes.
 
-Answer using only what the passages say, and cite the passage each statement comes from in square brackets.
+Answer using only what the passages say, and cite the passage each statement comes from in square brackets. Do not add facts from your own knowledge: if the question asks about something the passages do not mention, say that the notes do not cover it rather than filling the gap.
 
 Match the shape of the request:
 - A question: a short, direct answer in plain prose, one to four sentences.
@@ -100,7 +100,13 @@ async def chat(
     model: ChatModel = Depends(get_chat_model),
 ) -> StreamingResponse:
     cfg = settings()
-    query = await embedder.embed_query(body.question)
+    # Follow-ups lean on the previous turn: "and how is that different from
+    # CFS?" embeds to almost nothing on its own and retrieved the wrong chunk
+    # in testing. Folding the last user question into the retrieval query
+    # keeps the topic; the model still sees only the current question.
+    previous = next((t.content for t in reversed(body.history) if t.role == "user"), None)
+    retrieval_text = f"{previous}\n{body.question}" if previous else body.question
+    query = await embedder.embed_query(retrieval_text)
     hits = await vector_search(
         db,
         user_id=user.id,

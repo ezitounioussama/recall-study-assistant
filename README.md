@@ -36,6 +36,10 @@ Then open **http://localhost:3100** and sign in:
 Seeded by [`api/app/seed.py`](api/app/seed.py), which is idempotent — running it
 again resets that password rather than failing.
 
+## See it work
+
+[`docs/workflow.md`](docs/workflow.md) walks the whole product end to end with screenshots from a real run — credentials, start commands, every screen, the API, the models, and what to do when something looks wrong.
+
 ## What works today
 
 | | |
@@ -45,7 +49,7 @@ again resets that password rather than failing.
 | Review | FSRS-5: stability, difficulty, retrievability per card. Four ratings, each showing the interval it would produce; Space and 1–4 on the keyboard; a deck-wide recall gauge. |
 | Landing | the reference page's grammar, with the product shown working: live miniatures of chat and review inside Safari and iPhone frames, a bento of four differences, blur-fade reveals, number tickers, a macOS-style dock for the app's navigation — the MagicUI components, vendored and re-coloured to the design tokens. |
 | Auth | registration, login, logout, `/auth/me` — argon2id hashing, signed HttpOnly session cookies, server-side session records. |
-| Tests | 92 API tests (auth, documents, chat, FSRS, cards); 76 design-token assertions; `next build`, `tsc` and `eslint` clean. |
+| Tests | 93 API tests (auth, documents, chat, FSRS, cards); 76 design-token assertions; `next build`, `tsc` and `eslint` clean. |
 
 ![the library](docs/screens/library.png)
 ![asking a question](docs/screens/chat.png)

@@ -113,7 +113,10 @@ function SignInForm() {
             {error ? (
               // role=alert so a screen reader announces the failure rather than
               // leaving the user pressing a button that appears to do nothing.
-              <p role="alert" className="text-caption text-ink">
+              <p role="alert" className="flex items-center gap-xs rounded-md bg-canvas-parchment px-md py-xs text-caption-strong text-ink">
+                <span aria-hidden className="inline-flex size-4 items-center justify-center rounded-pill bg-ink text-[10px] leading-none text-on-dark">
+                  !
+                </span>
                 {error}
               </p>
             ) : null}
@@ -136,6 +139,21 @@ function SignInForm() {
         )}
 
         {!user && !registering ? (
+          <>
+          <div className="mt-xl flex justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                setMode("sign-in");
+                setEmail("demo@recall.study");
+                setPassword("study-out-loud-2026");
+                setError(null);
+              }}
+              className="inline-flex min-h-9 cursor-pointer items-center rounded-pill border border-hairline bg-canvas px-md text-caption text-ink"
+            >
+              Use the demo account
+            </button>
+          </div>
           <p className="mx-auto mt-section max-w-[40ch] text-center text-caption text-ink-muted-48">
             Trying this out? Sign in with <span className="text-ink">demo@recall.study</span> and{" "}
             <span className="text-ink">study-out-loud-2026</span>. The account is seeded by{" "}
@@ -144,6 +162,7 @@ function SignInForm() {
             </Link>
             .
           </p>
+          </>
         ) : null}
       </Section>
     </>
