@@ -1,0 +1,25 @@
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.sqlite3
+*.sqlite3-journal
+
+# node
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# secrets and local state
+.env
+.env.local
+.env.*.local
+uploads/
+
+# tooling
+.gstack/
+.DS_Store
