@@ -23,7 +23,7 @@ export function GlobalNav() {
       // h-11 is exactly 44px. The spec's height, not a rounded approximation.
       className="sticky top-0 z-50 flex h-11 items-center bg-surface-black text-on-dark"
     >
-      <div className="mx-auto flex w-full max-w-[1440px] items-center gap-[var(--spacing-lg)] px-[var(--spacing-lg)]">
+      <div className="mx-auto flex w-full max-w-[1440px] items-center gap-lg px-lg">
         <Link href="/" className="text-nav-link font-semibold text-on-dark">
           Recall
         </Link>
@@ -32,7 +32,7 @@ export function GlobalNav() {
             hide: the routes stay reachable from the sub-nav and the footer, and
             a tray that exists only to hold four links is chrome the design
             language would reject. */}
-        <ul className="hidden list-none items-center gap-[var(--spacing-lg)] p-0 md:flex">
+        <ul className="hidden list-none items-center gap-lg p-0 md:flex">
           {GLOBAL_LINKS.map(({ href, label }) => (
             <li key={href}>
               <Link href={href} className="text-nav-link text-on-dark opacity-80">
@@ -42,7 +42,7 @@ export function GlobalNav() {
           ))}
         </ul>
 
-        <div className="ml-auto flex items-center gap-[var(--spacing-sm)]">
+        <div className="ml-auto flex items-center gap-sm">
           <Link href="/sign-in" className="text-nav-link text-on-dark opacity-80">
             Sign in
           </Link>
@@ -64,9 +64,9 @@ export function GlobalNav() {
 export function SubNav({ category, children }: { category: string; children?: ReactNode }) {
   return (
     <div className="frosted sticky top-11 z-40 flex h-[52px] items-center border-b border-hairline">
-      <div className="mx-auto flex w-full max-w-[1440px] items-center px-[var(--spacing-lg)]">
+      <div className="mx-auto flex w-full max-w-[1440px] items-center px-lg">
         <span className="text-tagline text-ink">{category}</span>
-        <div className="ml-auto flex items-center gap-[var(--spacing-md)]">{children}</div>
+        <div className="ml-auto flex items-center gap-md">{children}</div>
       </div>
     </div>
   );
@@ -107,12 +107,12 @@ const FOOTER_COLUMNS = [
  */
 export function Footer() {
   return (
-    <footer className="bg-canvas-parchment px-[var(--spacing-lg)] py-[64px] text-ink-muted-80">
-      <div className="mx-auto grid w-full max-w-[1440px] gap-[var(--spacing-xl)] sm:grid-cols-2 md:grid-cols-3">
+    <footer className="bg-canvas-parchment px-lg py-[64px] text-ink-muted-80">
+      <div className="mx-auto grid w-full max-w-[1440px] gap-xl sm:grid-cols-2 md:grid-cols-3">
         {FOOTER_COLUMNS.map(({ heading, links }) => (
           <div key={heading}>
             <h3 className="text-caption-strong text-ink">{heading}</h3>
-            <ul className="mt-[var(--spacing-xs)] list-none p-0">
+            <ul className="mt-xs list-none p-0">
               {links.map(({ href, label }) => (
                 <li key={href} className="text-dense-link">
                   <Link href={href} className="text-ink-muted-80">
@@ -125,7 +125,7 @@ export function Footer() {
         ))}
       </div>
 
-      <div className="mx-auto mt-[var(--spacing-xl)] w-full max-w-[1440px] border-t border-hairline pt-[var(--spacing-md)]">
+      <div className="mx-auto mt-xl w-full max-w-[1440px] border-t border-hairline pt-md">
         <p className="text-fine-print text-ink-muted-48">
           Recall is a study project by Oussama Ezitouni. Not affiliated with Apple; the interface
           follows a published analysis of Apple&rsquo;s design language, included in this repository

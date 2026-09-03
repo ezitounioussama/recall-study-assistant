@@ -189,7 +189,7 @@ const ALLOWED_LITERALS: Record<string, string> = {
   // stylesheet is parsed, so it cannot reference a CSS variable. It matches
   // the global nav's surface-black on purpose: a white flash above a true-black
   // nav is exactly the kind of seam this design language avoids.
-  "src/app/layout.tsx:#000000": "theme-color is read before CSS loads",
+  "src/app/layout.tsx:#ffffff": "theme-color is read before CSS loads",
 };
 
 /**

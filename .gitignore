@@ -23,3 +23,8 @@ uploads/
 # tooling
 .gstack/
 .DS_Store
+
+# api local state
+api/recall.sqlite3
+api/test-recall.sqlite3
+api/.venv/

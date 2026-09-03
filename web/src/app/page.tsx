@@ -1,123 +1,145 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, Tile, TileHeader } from "@/components/ui/tile";
+import { FloatingNav, NavPill } from "@/components/ui/floating-nav";
+import {
+  Claim,
+  Emphasis,
+  Eyebrow,
+  LeadCopy,
+  ProductName,
+  ProductTagline,
+  Section,
+  Stat,
+} from "@/components/ui/product";
+import { Card } from "@/components/ui/tile";
 
 /**
- * The landing page, built on the spec's section pulse:
+ * The landing page in the iPhone Air page's grammar.
  *
- *   light hero -> dark tile -> parchment utility -> dark-2 tile -> light -> footer
- *
- * Every break between sections is a surface-colour change and nothing else.
- * There are no dividers, no borders between tiles, and no gaps — which is why
- * this file contains no separator markup at all.
+ * The shape it repeats, all the way down: eyebrow, one big claim at 40px/400,
+ * a grey paragraph with the claims marked in ink, then a great deal of air.
+ * Light surfaces throughout, stepping white to parchment rather than white to
+ * near-black — the product page carries its rhythm through whitespace, and
+ * saves the one dark band for a single moment.
  */
 
-const CAPABILITIES = [
+const DIFFERENCES = [
   {
-    title: "Answers that cite the paragraph",
-    body: "Every reply points at the chunk of your own material it came from, so you can go and read the source. An answer you cannot verify is not useful for studying.",
+    title: "Answers cite the paragraph",
+    body: "Every reply points at the chunk of your own material it came from. An answer you cannot verify is not useful for studying.",
   },
   {
     title: "A schedule, not a pile",
-    body: "Cards are scheduled with FSRS — each one carries its own difficulty and stability, and the next interval is computed from a memory model rather than a fixed ladder.",
+    body: "Each card carries its own difficulty and stability. The next interval is computed from a memory model, not picked off a fixed ladder.",
   },
   {
     title: "It says when it does not know",
-    body: "If your notes do not cover the question, Recall says so instead of answering from general knowledge. Confident and wrong is the failure mode that matters.",
+    body: "If your notes do not cover the question, Recall says so instead of answering from general knowledge.",
   },
 ] as const;
 
 export default function Home() {
   return (
     <>
-      {/* ---- hero: light ------------------------------------------------- */}
-      <Tile surface="light" className="pt-[var(--spacing-xxl)]">
-        <div className="flex flex-col items-center text-center">
-          <h1 className="max-w-[20ch] text-hero-display [letter-spacing:-0.01em]">
-            Study from what you already wrote.
-          </h1>
-          <p className="mt-[var(--spacing-lg)] max-w-[46ch] text-lead text-ink-muted-80">
-            Upload your notes. Ask them questions. Review the answers on a schedule that adapts to
-            what you keep forgetting.
-          </p>
-          <div className="mt-[var(--spacing-xxl)] flex flex-wrap items-center justify-center gap-[var(--spacing-sm)]">
-            <Link href="/library" data-pressable>
-              <Button variant="primary">Add your material</Button>
-            </Link>
-            <Link href="/#how" data-pressable>
-              <Button variant="secondary">How it works</Button>
-            </Link>
-          </div>
-        </div>
-      </Tile>
+      <FloatingNav title="Recall">
+        <NavPill href="/#how" variant="pearl">
+          How it works
+        </NavPill>
+        <NavPill href="/sign-in">Sign in</NavPill>
+      </FloatingNav>
 
-      {/* ---- dark tile: the loop ----------------------------------------- */}
-      <Tile surface="dark" id="how">
-        <TileHeader
-          onDark
-          eyebrow="The loop"
-          headline="Read once. Recall many times."
-          tagline="Reading a page four times feels like learning and is mostly recognition. Retrieval is what moves material into memory, so the whole product is built around being asked."
-        >
-          <Link href="/review" data-pressable>
-            <Button variant="primary">Start a review</Button>
+      {/* ---- hero ---------------------------------------------------------- */}
+      <Section tall>
+        <ProductName family="Recall" model="Study" />
+        <ProductTagline>The thinnest layer between your notes and remembering them.</ProductTagline>
+
+        <div className="mt-xxl flex justify-center">
+          <Link href="/library" data-pressable>
+            <Button variant="primary">Add your material</Button>
           </Link>
-        </TileHeader>
-      </Tile>
+        </div>
 
-      {/* ---- parchment: capabilities ------------------------------------- */}
-      <Tile surface="parchment" id="citations">
-        <TileHeader
-          align="start"
-          headline="Three things it does differently"
-          tagline="Each of these exists because the obvious version of this product gets it wrong."
-        />
-        <ul className="mt-[var(--spacing-xxl)] grid list-none gap-[var(--spacing-lg)] p-0 md:grid-cols-3">
-          {CAPABILITIES.map(({ title, body }) => (
+        {/* Where the reference page puts a full-bleed product render, this has
+            no product to photograph. Rather than fill the space with stock
+            imagery the design language would reject, the space stays empty and
+            the type carries it — the spec's own instruction is that whitespace
+            is the pedestal. */}
+        <p className="mx-auto mt-section max-w-[34ch] text-center text-caption text-ink-muted-48">
+          Runs locally by default. Your documents never have to leave the machine.
+        </p>
+      </Section>
+
+      {/* ---- the lead paragraph, two-tone ---------------------------------- */}
+      <Section id="how">
+        <LeadCopy>
+          Reading a page four times <Emphasis>feels like learning</Emphasis> and is mostly
+          recognition. Recall is built around <Emphasis>being asked</Emphasis> — it turns what you
+          wrote into questions, and schedules them for the moment{" "}
+          <Emphasis>just before you would forget</Emphasis>.
+        </LeadCopy>
+      </Section>
+
+      {/* ---- scheduling ---------------------------------------------------- */}
+      <Section surface="parchment" id="scheduling">
+        <Eyebrow>Scheduling</Eyebrow>
+        <Claim>The interval is computed, not chosen.</Claim>
+        <LeadCopy className="mt-xxl">
+          FSRS models three things per card: <Emphasis>how stable</Emphasis> the memory is,{" "}
+          <Emphasis>how difficult</Emphasis> the card is for you, and{" "}
+          <Emphasis>how likely</Emphasis> you are to recall it right now. Rate a card and all three
+          update.
+        </LeadCopy>
+
+        <div className="mt-section grid gap-xxl md:grid-cols-3">
+          <Stat value="Stability" label="Days until recall probability falls to 90%" />
+          <Stat value="Difficulty" label="How much this card resists you, and it never fully resets" />
+          <Stat value="Retrievability" label="Your chance of recalling it this second" />
+        </div>
+      </Section>
+
+      {/* ---- citations ----------------------------------------------------- */}
+      <Section id="citations">
+        <Eyebrow>Citations</Eyebrow>
+        <Claim>Every answer knows where it came from.</Claim>
+        <LeadCopy className="mt-xxl">
+          Retrieval finds the passages, the model answers from them, and the reply carries the
+          chunk it used. <Emphasis>Confident and wrong</Emphasis> is the failure mode that matters,
+          so an answer your notes do not support is refused rather than improvised.
+        </LeadCopy>
+      </Section>
+
+      {/* ---- the three differences ----------------------------------------- */}
+      <Section surface="parchment">
+        <Eyebrow>Points of difference</Eyebrow>
+        <Claim>Three things it does differently.</Claim>
+        <ul className="mt-section grid list-none gap-lg p-0 md:grid-cols-3">
+          {DIFFERENCES.map(({ title, body }) => (
             <Card key={title} as="li">
               <h3 className="text-body-strong">{title}</h3>
-              <p className="mt-[var(--spacing-xs)] text-body text-ink-muted-80">{body}</p>
+              <p className="mt-xs text-body text-lead-grey">{body}</p>
             </Card>
           ))}
         </ul>
-      </Tile>
+      </Section>
 
-      {/* ---- dark-2: the scheduler --------------------------------------- */}
-      <Tile surface="dark-2" id="scheduling">
-        <TileHeader
-          onDark
-          align="start"
-          eyebrow="Scheduling"
-          headline="The interval is computed, not chosen."
-          tagline="FSRS models three things per card: how stable the memory is, how difficult the card is for you, and how likely you are to recall it right now. Rate a card and all three update."
-        />
-        <dl className="mt-[var(--spacing-section)] grid gap-[var(--spacing-lg)] md:grid-cols-3">
-          {[
-            ["Stability", "How many days until recall probability falls to 90%. Grows every time you succeed."],
-            ["Difficulty", "How much this particular card resists you. Rises on a lapse, and never fully resets."],
-            ["Retrievability", "The chance you would recall it this second. Decays on a curve, not a calendar."],
-          ].map(([term, definition]) => (
-            <div key={term}>
-              <dt className="text-tagline text-on-dark">{term}</dt>
-              <dd className="mt-[var(--spacing-xxs)] ml-0 text-body text-body-muted">
-                {definition}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </Tile>
-
-      {/* ---- light: your material stays yours ---------------------------- */}
-      <Tile surface="light" id="privacy">
-        <TileHeader
-          headline="Your material stays your material."
-          tagline="Documents are scoped to your account. The default model runs locally through Ollama, so nothing has to leave the machine to answer a question."
-        >
+      {/* ---- the single dark band ------------------------------------------
+          One dark section in the whole page. The reference page uses its dark
+          moment sparingly and for a single idea, which is what makes it land. */}
+      <Section surface="dark" id="privacy">
+        <Eyebrow onDark>Your material</Eyebrow>
+        <Claim>
+          <span className="text-on-dark">It stays yours.</span>
+        </Claim>
+        <p className="mx-auto mt-xxl max-w-[30ch] text-center font-display text-lead-copy text-body-muted">
+          Documents are scoped to your account, and the default model runs locally through Ollama.
+          Nothing has to leave the machine to answer a question.
+        </p>
+        <div className="mt-xxl flex justify-center">
           <Link href="/library" data-pressable>
-            <Button variant="store-hero">Add your first document</Button>
+            <Button variant="primary">Add your first document</Button>
           </Link>
-        </TileHeader>
-      </Tile>
+        </div>
+      </Section>
     </>
   );
 }

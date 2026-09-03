@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { GlobalNav, Footer } from "@/components/ui/nav";
+import { Footer } from "@/components/ui/nav";
+import { ProductTopBar, TopBarLink } from "@/components/ui/floating-nav";
 import "./globals.css";
 
 /**
@@ -25,7 +26,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   // The global nav is true black and sits at the very top, so the mobile
   // browser chrome should match it rather than flashing white on scroll.
-  themeColor: "#000000",
+  // The product page is white to the top edge, so the browser chrome matches
+  // the canvas rather than the homepage's black nav.
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
 };
@@ -34,7 +37,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable}>
       <body>
-        <GlobalNav />
+        <ProductTopBar>
+          <TopBarLink href="/library">Library</TopBarLink>
+          <TopBarLink href="/chat">Ask</TopBarLink>
+          <TopBarLink href="/review">Review</TopBarLink>
+        </ProductTopBar>
         <main>{children}</main>
         <Footer />
       </body>

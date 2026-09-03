@@ -33,6 +33,10 @@
   --color-body-muted: #cccccc; /* secondary copy on dark tiles */
   --color-ink-muted-80: #333333;
   --color-ink-muted-48: #7a7a7a; /* disabled text, legal fine print */
+  /* The live iPhone Air page sets long-form lead copy in this grey and marks
+     emphasis in full ink, so a paragraph reads two-tone. The analysis document
+     does not name it — see docs/design-divergences.md. */
+  --color-lead-grey: #6e6e73;
 
   /* --- colour: hairlines ------------------------------------------------ */
   --color-divider-soft: #f0f0f0;
@@ -59,6 +63,30 @@
   --font-text: "SF Pro Text", system-ui, -apple-system, var(--font-inter), sans-serif;
 
   /* --- type scale ------------------------------------------------------- */
+  /* The document specifies 56px/600 for the hero. The live product page sets
+     the product name far larger and the tagline at 40px/400 — the page is
+     quieter and bigger than the analysis suggests. Both tokens exist; the
+     product-page pair is used by the hero. */
+  --text-product-name: 80px;
+  --text-product-name--line-height: 1.05;
+  --text-product-name--letter-spacing: -0.015em;
+  --text-product-name--font-weight: 600;
+
+  --text-product-tagline: 40px;
+  --text-product-tagline--line-height: 1.1;
+  --text-product-tagline--letter-spacing: -0.003em;
+  --text-product-tagline--font-weight: 400;
+
+  --text-section-head: 40px;
+  --text-section-head--line-height: 1.1;
+  --text-section-head--letter-spacing: -0.003em;
+  --text-section-head--font-weight: 400;
+
+  --text-lead-copy: 28px;
+  --text-lead-copy--line-height: 1.28;
+  --text-lead-copy--letter-spacing: -0.003em;
+  --text-lead-copy--font-weight: 400;
+
   --text-hero-display: 56px;
   --text-hero-display--line-height: 1.07;
   --text-hero-display--letter-spacing: -0.28px;
@@ -165,6 +193,11 @@
      buttons, never text. If you are reaching for this on a card, alternate
      the surface colour instead. */
   --shadow-product: 3px 5px 30px 0 rgba(0, 0, 0, 0.22);
+  /* The second shadow. docs/design-language.md states there is exactly one and
+     that chrome never carries elevation; the live iPhone Air page contradicts
+     it, floating the nav as a rounded island above the content. Recorded in
+     docs/design-divergences.md rather than silently added. */
+  --shadow-float: 0 4px 24px 0 rgba(0, 0, 0, 0.08);
 
   /* --- breakpoints, from the spec's structural list --------------------- */
   --breakpoint-phone: 640px;
@@ -177,84 +210,92 @@
 
 /* ---------------------------------------------------------------------------
    Base
+
+   Inside @layer base on purpose. These began as plain top-level rules after
+   the Tailwind import, which put them *after* the utility layer in source
+   order — so `p { margin: 0 }` silently beat `mx-auto` and every centred
+   element rendered flush left. At equal specificity the last rule wins, and
+   a reset must lose to a utility.
    --------------------------------------------------------------------------- */
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html {
-  /* The nav is sticky, so anchored sections need to clear it: 44px global
-     nav + 52px sub-nav. */
-  scroll-padding-top: 96px;
-  -webkit-text-size-adjust: 100%;
-}
-
-body {
-  margin: 0;
-  background: var(--color-canvas);
-  color: var(--color-ink);
-  font-family: var(--font-text);
-  font-size: var(--text-body);
-  line-height: var(--text-body--line-height);
-  letter-spacing: var(--text-body--letter-spacing);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  /* ss03 gives Inter a rounded "a", closer to SF Pro's character. */
-  font-feature-settings: "ss03";
-}
-
-h1,
-h2,
-h3,
-h4 {
-  font-family: var(--font-display);
-  font-weight: 600;
-  /* balance stops a two-word headline orphaning its last word */
-  text-wrap: balance;
-  margin: 0;
-}
-
-p {
-  margin: 0;
-  /* pretty prevents a single-word last line in body copy */
-  text-wrap: pretty;
-}
-
-a {
-  color: var(--color-primary);
-  text-decoration: none;
-}
-
-/* The one system-wide micro-interaction: press shrinks. Applied to anything
-   that reads as a button. Hover is deliberately not styled — the spec says
-   default and pressed states only. */
-button,
-[role="button"],
-a[data-pressable] {
-  transition: transform 120ms ease-out;
-}
-
-button:active,
-[role="button"]:active,
-a[data-pressable]:active {
-  transform: scale(0.95);
-}
-
-:focus-visible {
-  outline: 2px solid var(--color-primary-focus);
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
+@layer base {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    box-sizing: border-box;
+  }
+
+  html {
+    /* The nav is sticky, so anchored sections need to clear it: 44px global
+       nav + 52px sub-nav. */
+    scroll-padding-top: 96px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-text);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    letter-spacing: var(--text-body--letter-spacing);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* ss03 gives Inter a rounded "a", closer to SF Pro's character. */
+    font-feature-settings: "ss03";
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    /* balance stops a two-word headline orphaning its last word */
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  p {
+    margin: 0;
+    /* pretty prevents a single-word last line in body copy */
+    text-wrap: pretty;
+  }
+
+  a {
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  /* The one system-wide micro-interaction: press shrinks. Applied to anything
+     that reads as a button. Hover is deliberately not styled — the spec says
+     default and pressed states only. */
+  button,
+  [role="button"],
+  a[data-pressable] {
+    transition: transform 120ms ease-out;
+  }
+
+  button:active,
+  [role="button"]:active,
+  a[data-pressable]:active {
+    transform: scale(0.95);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary-focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
