@@ -1,8 +1,10 @@
-"""Request and response shapes for auth."""
+"""Request and response shapes."""
 
 from __future__ import annotations
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+import datetime as dt
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class Credentials(BaseModel):
@@ -34,3 +36,40 @@ class PublicUser(BaseModel):
 
 class Message(BaseModel):
     detail: str
+
+
+# ---- documents and retrieval ------------------------------------------------
+
+
+class DocumentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    title: str
+    filename: str
+    media_type: str
+    size_bytes: int
+    chunk_count: int
+    created_at: dt.datetime
+
+
+class ChunkOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    position: int
+    text: str
+    char_count: int
+
+
+class DocumentDetail(DocumentOut):
+    chunks: list[ChunkOut]
+
+
+class SearchHit(BaseModel):
+    chunk_id: str
+    document_id: str
+    document_title: str
+    position: int
+    text: str
+    score: float

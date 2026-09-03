@@ -13,3 +13,5 @@ python-multipart>=0.0.20
 pytest>=8.3
 pytest-asyncio>=0.25
 httpx>=0.28
+pypdf>=5.1               # PDF text extraction; pure python, no system deps
+numpy>=2.0               # cosine similarity over stored embeddings
