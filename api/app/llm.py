@@ -25,6 +25,8 @@ class Turn(TypedDict):
 class ChatModel(Protocol):
     async def stream(self, system: str, messages: list[Turn]) -> AsyncIterator[str]: ...
 
+    async def complete(self, system: str, messages: list[Turn], *, json_mode: bool = False) -> str: ...
+
 
 # Families that emit a reasoning block before the answer. Ollama can switch it
 # off with `think: false`, but rejects the field for models that never think,
@@ -37,10 +39,10 @@ class OllamaChat:
         self._host = host.rstrip("/")
         self._model = model
 
-    async def stream(self, system: str, messages: list[Turn]) -> AsyncIterator[str]:
+    def _payload(self, system: str, messages: list[Turn], *, stream: bool) -> dict:
         payload: dict = {
             "model": self._model,
-            "stream": True,
+            "stream": stream,
             "messages": [{"role": "system", "content": system}, *messages],
             # Low temperature: this is "answer from the passages", not creative
             # writing, and a grounded answer should come out the same twice.
@@ -48,6 +50,24 @@ class OllamaChat:
         }
         if self._model.split(":")[0] in _THINKING_FAMILIES:
             payload["think"] = False
+        return payload
+
+    async def complete(self, system: str, messages: list[Turn], *, json_mode: bool = False) -> str:
+        payload = self._payload(system, messages, stream=False)
+        if json_mode:
+            # Ollama constrains decoding to valid JSON. Small models still
+            # sometimes pick a different shape, so callers parse defensively.
+            payload["format"] = "json"
+        async with httpx.AsyncClient(timeout=httpx.Timeout(300, connect=10)) as http:
+            response = await http.post(f"{self._host}/api/chat", json=payload)
+        response.raise_for_status()
+        body = response.json()
+        if "error" in body:
+            raise RuntimeError(body["error"])
+        return body["message"]["content"]
+
+    async def stream(self, system: str, messages: list[Turn]) -> AsyncIterator[str]:
+        payload = self._payload(system, messages, stream=True)
 
         async with httpx.AsyncClient(timeout=httpx.Timeout(300, connect=10)) as http:
             async with http.stream("POST", f"{self._host}/api/chat", json=payload) as response:
@@ -76,6 +96,10 @@ class ScriptedChat:
     def __init__(self, reply: str) -> None:
         self.reply = reply
         self.calls: list[tuple[str, list[Turn]]] = []
+
+    async def complete(self, system: str, messages: list[Turn], *, json_mode: bool = False) -> str:
+        self.calls.append((system, messages))
+        return self.reply
 
     async def stream(self, system: str, messages: list[Turn]) -> AsyncIterator[str]:
         self.calls.append((system, messages))

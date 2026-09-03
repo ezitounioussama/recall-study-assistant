@@ -102,3 +102,86 @@ class Source(BaseModel):
     position: int
     text: str
     score: float
+
+
+# ---- cards and review -------------------------------------------------------
+
+
+class CardCreate(BaseModel):
+    front: str = Field(min_length=1, max_length=2000)
+    back: str = Field(min_length=1, max_length=4000)
+    document_id: str | None = None
+    chunk_id: str | None = None
+
+
+class GenerateCards(BaseModel):
+    document_id: str
+    per_chunk: int = Field(default=3, ge=1, le=8)
+
+
+class CardOut(BaseModel):
+    id: str
+    document_id: str | None
+    chunk_id: str | None
+    front: str
+    back: str
+    state: Literal["learning", "review", "relearning"]
+    step: int | None
+    stability: float | None
+    difficulty: float | None
+    due: dt.datetime
+    last_review: dt.datetime | None
+    reps: int
+    lapses: int
+    created_at: dt.datetime
+    # Probability of recall at the moment of the request, from the memory model.
+    retrievability: float
+
+
+class DueCard(CardOut):
+    # Seconds until the card would next be due for each rating — the numbers
+    # under the four buttons.
+    preview: dict[Literal["again", "hard", "good", "easy"], int]
+    # The passage this card was written from, when it still exists.
+    source_text: str | None
+    source_title: str | None
+
+
+class ReviewRequest(BaseModel):
+    rating: int = Field(ge=1, le=4, description="1 again, 2 hard, 3 good, 4 easy")
+
+
+class ReviewLogOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    card_id: str
+    rating: int
+    state_before: str
+    retrievability: float
+    elapsed_seconds: float
+    scheduled_seconds: float
+    stability_after: float
+    difficulty_after: float
+    reviewed_at: dt.datetime
+
+
+class ReviewResult(BaseModel):
+    card: CardOut
+    log: ReviewLogOut
+
+
+class CardStats(BaseModel):
+    total: int
+    learning: int
+    review: int
+    relearning: int
+    due_now: int
+    reviewed_today: int
+    # Share of reviews in the last 30 days that were not "again". None until
+    # there is something to measure.
+    retention_30d: float | None
+    next_due: dt.datetime | None
+    # Mean retrievability across the deck right now — "how much of this do I
+    # still know" in one number.
+    mean_retrievability: float | None
