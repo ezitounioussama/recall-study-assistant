@@ -31,10 +31,5 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3"
   },
-  "type": "module",
-  "pnpm": {
-    "ignoredBuiltDependencies": [
-      "unrs-resolver"
-    ]
-  }
+  "type": "module"
 }
