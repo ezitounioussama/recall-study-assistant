@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -67,6 +68,34 @@ class DocumentDetail(DocumentOut):
 
 
 class SearchHit(BaseModel):
+    chunk_id: str
+    document_id: str
+    document_title: str
+    position: int
+    text: str
+    score: float
+
+
+# ---- chat -------------------------------------------------------------------
+
+
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=8000)
+
+
+class ChatRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)
+    history: list[ChatTurn] = Field(default_factory=list, max_length=40)
+    # Restrict retrieval to these documents. None means the whole library.
+    document_ids: list[str] | None = None
+
+
+class Source(BaseModel):
+    """A retrieved passage as the client sees it. `index` is the number the
+    answer cites in square brackets."""
+
+    index: int
     chunk_id: str
     document_id: str
     document_title: str
