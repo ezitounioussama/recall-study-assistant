@@ -13,6 +13,9 @@ colors:
   body-muted: "#cccccc"
   ink-muted-80: "#333333"
   ink-muted-48: "#7a7a7a"
+  # Added from the live apple.com/ma/iphone-air page, which the original
+  # analysis did not cover. See docs/design-divergences.md.
+  lead-grey: "#6e6e73"
   divider-soft: "#f0f0f0"
   hairline: "#e0e0e0"
   canvas: "#ffffff"

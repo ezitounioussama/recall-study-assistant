@@ -80,7 +80,7 @@ export function TileHeader({
         // the brighter Sky Link Blue takes over — the spec is explicit that
         // these two are not interchangeable across surfaces.
         <p
-          className={`mb-[var(--spacing-sm)] text-caption-strong uppercase ${
+          className={`mb-sm text-caption-strong uppercase ${
             onDark ? "text-primary-on-dark" : "text-primary"
           }`}
           style={{ letterSpacing: "0.06em" }}
@@ -96,7 +96,7 @@ export function TileHeader({
 
       {tagline ? (
         <p
-          className={`mt-[var(--spacing-lg)] max-w-[36ch] text-lead ${
+          className={`mt-lg max-w-[36ch] text-lead ${
             onDark ? "text-body-muted" : "text-ink-muted-80"
           }`}
         >
@@ -106,7 +106,7 @@ export function TileHeader({
 
       {children ? (
         <div
-          className={`mt-[var(--spacing-xxl)] flex flex-wrap items-center gap-[var(--spacing-sm)] ${
+          className={`mt-xxl flex flex-wrap items-center gap-sm ${
             isCentre ? "justify-center" : ""
           }`}
         >
@@ -135,7 +135,7 @@ export function Card({
 }) {
   return (
     <Tag
-      className={`rounded-lg border border-hairline bg-canvas p-[var(--spacing-lg)] text-ink ${className}`}
+      className={`rounded-lg border border-hairline bg-canvas p-lg text-ink ${className}`}
     >
       {children}
     </Tag>
