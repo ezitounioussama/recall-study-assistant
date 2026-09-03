@@ -326,3 +326,39 @@
     padding-block: var(--spacing-xxl);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Motion tokens for the MagicUI components under src/components/magicui.
+
+   A second @theme block rather than an addition to the first: the first is a
+   transcription of the design specification, and these keyframes are not in
+   it. Keeping them apart keeps the token checker honest about what is spec
+   and what is implementation.
+   --------------------------------------------------------------------------- */
+
+@theme {
+  --animate-shine: shine var(--duration, 14s) infinite linear;
+  --animate-blink-cursor: blink-cursor 1s step-end infinite;
+
+  @keyframes shine {
+    0% {
+      background-position: 0% 0%;
+    }
+    50% {
+      background-position: 100% 100%;
+    }
+    to {
+      background-position: 0% 0%;
+    }
+  }
+
+  @keyframes blink-cursor {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0;
+    }
+  }
+}

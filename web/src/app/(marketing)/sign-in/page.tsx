@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FloatingNav, NavPill } from "@/components/ui/floating-nav";
 import { Claim, Eyebrow, Section } from "@/components/ui/product";
 import { api, ApiError, type PublicUser } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 /**
  * Sign in, and register from the same form.
@@ -16,7 +17,19 @@ import { api, ApiError, type PublicUser } from "@/lib/api";
  * redirect to drift apart.
  */
 export default function SignInPage() {
+  // useSearchParams needs a Suspense boundary above it in the App Router.
+  return (
+    <Suspense fallback={null}>
+      <SignInForm />
+    </Suspense>
+  );
+}
+
+function SignInForm() {
   const router = useRouter();
+  const { refresh } = useAuth();
+  // Where RequireAuth sent us from, so a bounced visitor lands back there.
+  const next = useSearchParams().get("next") ?? "/library";
   const [mode, setMode] = useState<"sign-in" | "register">("sign-in");
   const [email, setEmail] = useState("demo@recall.study");
   const [password, setPassword] = useState("");
@@ -39,7 +52,8 @@ export default function SignInPage() {
       // A moment on the confirmation before moving, so the name that came back
       // from the server is actually readable. Redirecting instantly makes a
       // successful sign-in indistinguishable from a page reload.
-      setTimeout(() => router.push("/library"), 900);
+      await refresh();
+      setTimeout(() => router.push(next.startsWith("/") ? next : "/library"), 900);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "Something went wrong.");
     } finally {

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { Footer } from "@/components/ui/nav";
-import { ProductTopBar, TopBarLink } from "@/components/ui/floating-nav";
+import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
 /**
@@ -24,8 +23,6 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // The global nav is true black and sits at the very top, so the mobile
-  // browser chrome should match it rather than flashing white on scroll.
   // The product page is white to the top edge, so the browser chrome matches
   // the canvas rather than the homepage's black nav.
   themeColor: "#ffffff",
@@ -33,17 +30,16 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+/**
+ * The root carries only what every page shares: the font and the session.
+ * Chrome differs by area — the marketing pages have the top bar and footer,
+ * the app has the dock — so each route group brings its own layout.
+ */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable}>
       <body>
-        <ProductTopBar>
-          <TopBarLink href="/library">Library</TopBarLink>
-          <TopBarLink href="/chat">Ask</TopBarLink>
-          <TopBarLink href="/review">Review</TopBarLink>
-        </ProductTopBar>
-        <main>{children}</main>
-        <Footer />
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
