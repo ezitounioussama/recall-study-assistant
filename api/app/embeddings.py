@@ -67,7 +67,8 @@ class HashEmbedder:
     it is not the default.
     """
 
-    dimensions = 256
+    # Large enough that two unrelated short texts almost never share a bucket.
+    dimensions = 4096
 
     async def embed_documents(self, texts: list[str]) -> list[np.ndarray]:
         return [self._vector(t) for t in texts]

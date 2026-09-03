@@ -47,6 +47,19 @@ class Settings(BaseSettings):
 
     max_upload_bytes: int = 10 * 1024 * 1024
 
+    # ---- chat ---------------------------------------------------------------
+
+    # llama3.2:3b answers in seconds on a CPU. qwen3:8b is noticeably better
+    # and noticeably slower; it also emits a reasoning block, which the adapter
+    # switches off. Either is a settings change.
+    chat_model: str = "llama3.2:3b"
+
+    # Passages scoring under this are not shown to the model, and a question
+    # that retrieves none gets the fixed refusal. Calibrated on nomic-embed-text
+    # cosine: relevant passages land at 0.8+, unrelated ones at 0.4-0.57.
+    retrieval_min_score: float = 0.6
+    retrieval_k: int = 5
+
 
 @lru_cache
 def settings() -> Settings:
