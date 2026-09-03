@@ -1,7 +1,8 @@
 """Tables.
 
-Only what auth needs. Documents, chunks, cards and reviews arrive with the pull
-requests that use them — a table with no reader is a guess about the future.
+Each table arrives with the pull request that reads it — a table with no reader
+is a guess about the future. Auth brought users and sessions; documents and
+chunks came with retrieval.
 """
 
 from __future__ import annotations
@@ -9,7 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -42,6 +43,9 @@ class User(Base):
     sessions: Mapped[list["Session"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    documents: Mapped[list["Document"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Session(Base):
@@ -64,3 +68,63 @@ class Session(Base):
     expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
 
     user: Mapped[User] = relationship(back_populates="sessions")
+
+
+class Document(Base):
+    """One uploaded file, owned by one user.
+
+    The original bytes are not kept. What the product needs is the text and its
+    chunks; keeping the upload as well would double the storage for the sake of
+    a download button nobody asked for.
+    """
+
+    __tablename__ = "documents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+
+    title: Mapped[str] = mapped_column(String(200))
+    filename: Mapped[str] = mapped_column(String(255))
+    media_type: Mapped[str] = mapped_column(String(100))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    chunk_count: Mapped[int] = mapped_column(Integer, default=0)
+
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    user: Mapped[User] = relationship(back_populates="documents")
+    chunks: Mapped[list["Chunk"]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="Chunk.position",
+    )
+
+
+class Chunk(Base):
+    """A passage of a document with its embedding.
+
+    `user_id` is copied from the document on purpose. Retrieval is always
+    "search this user's material", and filtering chunks by owner without a join
+    keeps the hot path one table. The document row stays the source of truth
+    for ownership; this column is an index, not a second opinion.
+    """
+
+    __tablename__ = "chunks"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    position: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str] = mapped_column(Text)
+    char_count: Mapped[int] = mapped_column(Integer)
+
+    # float32, little-endian, packed. SQLite has no vector type; storing the
+    # raw buffer keeps decoding to one numpy call and avoids a JSON list that
+    # would be six times the size.
+    embedding: Mapped[bytes] = mapped_column(LargeBinary)
+
+    document: Mapped[Document] = relationship(back_populates="chunks")

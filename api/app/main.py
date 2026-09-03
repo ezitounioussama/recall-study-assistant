@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import create_all
-from app.routers import auth
+from app.routers import auth, documents
 
 
 @asynccontextmanager
@@ -20,8 +20,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Recall API",
-    version="0.2.0",
-    description="Auth today; documents, retrieval and the FSRS scheduler next.",
+    version="0.3.0",
+    description="Auth, documents and retrieval; chat and the FSRS scheduler next.",
     lifespan=lifespan,
 )
 
@@ -37,6 +37,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(documents.router)
 
 
 @app.get("/health", tags=["ops"])

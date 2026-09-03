@@ -5,10 +5,10 @@ working and tested.
 
 | # | Branch | Scope | State |
 |---|---|---|---|
-| 1 | `feat/design-system` | Apple design tokens as CSS custom properties, Tailwind v4 theme, component primitives, a token-coverage test | |
-| 2 | `feat/backend-foundation` | FastAPI app factory, settings, async SQLAlchemy + Alembic, `/health`, Prometheus `/metrics`, structured logging | |
-| 3 | `feat/auth` | Session-cookie auth, argon2id hashing, registration and login, per-user data scoping | |
-| 4 | `feat/documents-rag` | Upload, chunking with token-aware overlap, embeddings, vector search over the user's own material | |
+| 1 | `feat/design-system` | Apple design tokens as CSS custom properties, Tailwind v4 theme, component primitives, a token-coverage test | merged, #1 |
+| 2 | `feat/backend-foundation` | FastAPI app, settings, async SQLAlchemy, `/health` | merged with #2 |
+| 3 | `feat/auth` | Session-cookie auth, argon2id hashing, registration and login, per-user data scoping | merged, #2 |
+| 4 | `feat/documents-rag` | Upload (txt/md/pdf), paragraph-aware chunking with overlap, nomic embeddings through Ollama, cosine search scoped to the owner | merged, #3 |
 | 5 | `feat/chat-streaming` | SSE token streaming with citations back to the retrieved chunks, plus a graceful "I can't find that in your notes" | |
 | 6 | `feat/spaced-repetition` | FSRS scheduler — stability, difficulty, retrievability — card state machine and review API | |
 | 7 | `feat/web-app` | Next.js app in the Apple design language: marketing tiles, chat, library, review session | |

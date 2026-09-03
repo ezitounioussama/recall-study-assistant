@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -29,6 +30,22 @@ class Settings(BaseSettings):
     # permitted with credentials by the CORS spec, and browsers enforce it, so
     # this has to be exact.
     web_origin: str = "http://localhost:3100"
+
+    # ---- documents and retrieval ------------------------------------------
+
+    # "ollama" talks to a local Ollama server. "hash" is a deterministic
+    # bag-of-words embedder with no model behind it: it exists so the test
+    # suite runs anywhere, and it is not good enough to ship.
+    embedding_provider: Literal["ollama", "hash"] = "ollama"
+    ollama_host: str = "http://127.0.0.1:11434"
+    embedding_model: str = "nomic-embed-text"
+
+    # ~1800 characters is roughly 450 tokens: large enough that a chunk carries
+    # a whole idea, small enough that a citation points somewhere specific.
+    chunk_chars: int = 1800
+    chunk_overlap_chars: int = 200
+
+    max_upload_bytes: int = 10 * 1024 * 1024
 
 
 @lru_cache

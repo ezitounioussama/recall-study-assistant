@@ -7,43 +7,10 @@ and leaks which emails are registered passes any smoke test.
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
-os.environ.setdefault("SESSION_SECRET", "x" * 48)
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test-recall.sqlite3"
-
-from httpx import ASGITransport, AsyncClient  # noqa: E402
-
-from app.db import create_all, drop_all  # noqa: E402
-from app.main import app  # noqa: E402
-from app.security import hash_password, verify_password  # noqa: E402
-
-GOOD_PASSWORD = "correct-horse-battery"
-
-
-@pytest.fixture(autouse=True)
-async def fresh_database():
-    """Reset the schema through the engine, not by deleting the file."""
-    await drop_all()
-    await create_all()
-    yield
-
-
-@pytest.fixture
-async def client():
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as http:
-        yield http
-
-
-async def register(client, email="a@b.com", password=GOOD_PASSWORD):
-    return await client.post(
-        "/auth/register",
-        json={"email": email, "password": password, "display_name": "Tester"},
-    )
+from app.security import hash_password, verify_password
+from tests.conftest import GOOD_PASSWORD, register
 
 
 class TestRegistration:
