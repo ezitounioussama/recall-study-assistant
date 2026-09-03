@@ -1,2 +1,9 @@
+# pnpm 10+ reads install settings from here, not from package.json.
+# unrs-resolver ships an optional native binary whose postinstall pnpm blocks
+# by default; eslint-import-resolver falls back to the JS resolver without it.
+packages:
+  - .
 allowBuilds:
   unrs-resolver: set this to true or false
+ignoredBuiltDependencies:
+  - unrs-resolver
