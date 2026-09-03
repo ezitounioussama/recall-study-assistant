@@ -58,7 +58,7 @@ export function Section({
  */
 export function ProductName({ family, model }: { family: string; model: string }) {
   return (
-    <h1 className="text-center font-display text-product-name">
+    <h1 className="text-center font-display text-display-lg md:text-product-name">
       <span className="text-ink">{family}</span>{" "}
       <span className="font-normal text-lead-grey">{model}</span>
     </h1>
@@ -74,7 +74,7 @@ export function ProductName({ family, model }: { family: string; model: string }
  */
 export function ProductTagline({ children }: { children: ReactNode }) {
   return (
-    <p className="mx-auto mt-lg max-w-[24ch] text-center font-display text-product-tagline text-lead-grey">
+    <p className="mx-auto mt-lg max-w-[24ch] text-center font-display text-lead-copy text-lead-grey md:text-product-tagline">
       {children}
     </p>
   );
@@ -92,7 +92,7 @@ export function ProductTagline({ children }: { children: ReactNode }) {
 export function LeadCopy({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <p
-      className={`mx-auto max-w-[30ch] text-center font-display text-lead-copy text-lead-grey ${className}`}
+      className={`mx-auto max-w-[30ch] text-center font-display text-tagline text-lead-grey md:text-lead-copy ${className}`}
     >
       {children}
     </p>
@@ -164,7 +164,7 @@ export function Eyebrow({ children, onDark = false }: { children: ReactNode; onD
  */
 export function Claim({ children }: { children: ReactNode }) {
   return (
-    <h2 className="mx-auto max-w-[26ch] text-center font-display text-section-head text-ink">
+    <h2 className="mx-auto max-w-[26ch] text-center font-display text-display-md text-ink md:text-section-head">
       {children}
     </h2>
   );
@@ -177,7 +177,7 @@ export function Claim({ children }: { children: ReactNode }) {
 export function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div className="text-center">
-      <p className="font-display text-section-head text-ink">{value}</p>
+      <p className="font-display text-display-md text-ink md:text-section-head">{value}</p>
       <p className="mt-xs text-body text-lead-grey">{label}</p>
     </div>
   );

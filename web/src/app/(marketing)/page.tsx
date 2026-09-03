@@ -51,7 +51,7 @@ export default function Home() {
             <ProductName family="Recall" model="Study" />
           </BlurFade>
           <BlurFade inView={false} delay={0.15} duration={0.7}>
-            <p className="mx-auto mt-lg max-w-[26ch] text-center font-display text-product-tagline text-lead-grey">
+            <p className="mx-auto mt-lg max-w-[26ch] text-center font-display text-lead-copy text-lead-grey md:text-product-tagline">
               The thinnest layer between your notes and <WordRotate words={HERO_ROTATION} className="text-ink" />
             </p>
           </BlurFade>
@@ -180,7 +180,7 @@ export default function Home() {
           <Claim>
             <span className="text-on-dark">It stays yours.</span>
           </Claim>
-          <p className="mx-auto mt-xxl max-w-[30ch] text-center font-display text-lead-copy text-body-muted">
+          <p className="mx-auto mt-xxl max-w-[30ch] text-center font-display text-tagline text-body-muted md:text-lead-copy">
             Documents are scoped to your account, and the default model runs locally through Ollama. Nothing has to
             leave the machine to answer a question.
           </p>
@@ -206,7 +206,7 @@ export default function Home() {
 function Figure({ value, suffix = "", label }: { value: number; suffix?: string; label: string }) {
   return (
     <div className="text-center">
-      <p className="font-display text-hero-display text-ink">
+      <p className="font-display text-display-lg text-ink md:text-hero-display">
         <NumberTicker value={value} />
         {suffix}
       </p>

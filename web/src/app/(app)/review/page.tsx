@@ -134,7 +134,7 @@ export default function ReviewPage() {
             <dl className="mt-md flex flex-wrap gap-xl">
               <Stat label="due now" value={stats?.due_now ?? 0} />
               <Stat label="reviewed today" value={stats?.reviewed_today ?? 0} />
-              <Stat label="retention · 30d" value={Math.round((stats?.retention_30d ?? 0) * 100)} suffix="%" />
+              <Stat label="retention · 30d" value={stats?.retention_30d == null ? null : Math.round(stats.retention_30d * 100)} suffix="%" />
               <Stat label="cards" value={stats?.total ?? 0} />
             </dl>
           </div>
@@ -274,13 +274,13 @@ export default function ReviewPage() {
   );
 }
 
-function Stat({ label, value, suffix = "" }: { label: string; value: number; suffix?: string }) {
+function Stat({ label, value, suffix = "" }: { label: string; value: number | null; suffix?: string }) {
   return (
     <div>
       <dt className="text-caption text-lead-grey">{label}</dt>
       <dd className="m-0 font-display text-display-md text-ink">
-        <NumberTicker value={value} />
-        {suffix}
+        {value === null ? <span className="text-ink-muted-48">—</span> : <NumberTicker value={value} />}
+        {value === null ? "" : suffix}
       </dd>
     </div>
   );
