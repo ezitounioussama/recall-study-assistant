@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     retrieval_min_score: float = 0.6
     retrieval_k: int = 5
 
+    # ---- cards --------------------------------------------------------------
+
+    cards_per_chunk: int = 3
+    # One generation call is bounded so a 300-page upload cannot turn into an
+    # hour of model time from a single click.
+    max_cards_per_generation: int = 60
+
 
 @lru_cache
 def settings() -> Settings:

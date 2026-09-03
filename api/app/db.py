@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -57,3 +58,16 @@ async def create_all() -> None:
 
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+
+
+@event.listens_for(engine.sync_engine, "connect")
+def _enable_sqlite_foreign_keys(dbapi_connection, _record) -> None:
+    """SQLite ignores ON DELETE CASCADE / SET NULL unless asked per connection.
+
+    Without this, deleting a document would leave its cards pointing at an id
+    that no longer exists, and the ORM-level cascade would be the only thing
+    keeping chunks tidy.
+    """
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
