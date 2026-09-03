@@ -250,7 +250,7 @@ function Answer({ message, onCite }: { message: Message; onCite: (n: number) => 
     <div className="max-w-[85%]">
       <div
         className={cn(
-          "rounded-lg rounded-bl-xs px-lg py-sm text-body",
+          "rounded-lg rounded-bl-xs px-lg py-sm text-body whitespace-pre-wrap",
           message.grounded === false ? "bg-canvas-parchment text-lead-grey" : "bg-canvas-parchment text-ink",
         )}
       >
@@ -292,11 +292,19 @@ function Answer({ message, onCite }: { message: Message; onCite: (n: number) => 
       </div>
       {message.grounded === false && !message.streaming ? (
         <p className="mt-xs text-caption text-lead-grey">
-          Nothing in your material clears the similarity floor for this question.{" "}
-          <Link href="/library" className="text-primary">
-            Add material
-          </Link>{" "}
-          or ask something it covers.
+          {message.sources?.length ? (
+            // Retrieval found something; the model still would not answer from
+            // it. Blaming the similarity floor here would be wrong.
+            <>Recall found a passage on this but could not build an answer from it. Try a more specific question.</>
+          ) : (
+            <>
+              Nothing in your material clears the similarity floor for this question.{" "}
+              <Link href="/library" className="text-primary">
+                Add material
+              </Link>{" "}
+              or ask something it covers.
+            </>
+          )}
         </p>
       ) : null}
     </div>
