@@ -265,3 +265,76 @@ class StudySessionOut(BaseModel):
 
 class StudySessionDetail(StudySessionOut):
     contents: list[GeneratedContentOut]
+
+
+# ---- study endpoints -------------------------------------------------------------
+#
+# One request shape, four variations. `topic` is both the thing to explain and
+# the query used to find the passages, which is why it has a floor: "a" would
+# retrieve noise, and asking a model to explain it would waste a minute of CPU.
+
+
+Level = Literal["beginner", "intermediate", "advanced"]
+
+
+class StudyRequest(BaseModel):
+    topic: str = Field(min_length=3, max_length=500, description="What to study. Also the retrieval query.")
+    document_ids: list[str] | None = Field(
+        default=None, max_length=20, description="Restrict to these documents. Omit for the whole library."
+    )
+
+    @field_validator("topic")
+    @classmethod
+    def not_only_whitespace(cls, value: str) -> str:
+        topic = value.strip()
+        if len(topic) < 3:
+            raise ValueError("topic must be at least 3 characters")
+        return topic
+
+
+class ExplainRequest(StudyRequest):
+    level: Level = "beginner"
+
+
+class SummariseRequest(StudyRequest):
+    points: int = Field(default=5, ge=1, le=12, description="At most this many points; fewer if the material is thin")
+
+
+class QuizRequest(StudyRequest):
+    count: int = Field(default=5, ge=1, le=20)
+    difficulty: Level = "beginner"
+
+
+class FlashcardsRequest(StudyRequest):
+    count: int = Field(default=5, ge=1, le=20, description="Cards to write, spread across the passages found")
+
+
+class StudyResponse(BaseModel):
+    """What every study endpoint returns around its payload.
+
+    `session_id` is the history row this generation was saved as, so a client
+    can link straight to it rather than searching the list for what it just did.
+    """
+
+    session_id: str
+    kind: str
+    topic: str
+    model: str
+    created_at: dt.datetime
+    sources: list[Source]
+
+
+class ExplainResponse(StudyResponse):
+    explanation: Explanation
+
+
+class SummariseResponse(StudyResponse):
+    summary: Summary
+
+
+class QuizResponse(StudyResponse):
+    quiz: QuizOut
+
+
+class FlashcardsResponse(StudyResponse):
+    cards: list[CardOut] = Field(description="Saved and due now, so they appear in the next review session")

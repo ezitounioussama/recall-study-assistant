@@ -50,7 +50,7 @@ with their endpoints and status, and the plan against the lab's seven phases.
 | `docs/` | plan, roadmap, workflow tour with screenshots, design specification |
 | `requirements.txt` · `.env.example` | root index files; the real ones sit in `api/` and `web/` |
 
-Lab phase write-ups: [phase 1 — product plan](docs/product-plan.md) · [phase 2 — backend foundation](docs/phase-2-backend-foundation.md) · [phase 3 — LLM integration](docs/phase-3-llm-integration.md) · [phase 4 — database and auth](docs/phase-4-database-and-auth.md)
+Lab phase write-ups: [phase 1 — product plan](docs/product-plan.md) · [phase 2 — backend foundation](docs/phase-2-backend-foundation.md) · [phase 3 — LLM integration](docs/phase-3-llm-integration.md) · [phase 4 — database and auth](docs/phase-4-database-and-auth.md) · [phase 5 — study features](docs/phase-5-study-features.md)
 
 ## See it work
 

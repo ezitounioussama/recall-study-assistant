@@ -29,7 +29,7 @@ from app.db import get_session
 from app.embeddings import Embedder, get_embedder
 from app.llm import Turn
 from app.models import User
-from app.retrieval import search as vector_search
+from app.retrieval import find_sources
 from app.routers.auth import current_user
 from app.schemas import ChatRequest, Source
 
@@ -65,31 +65,13 @@ async def chat(
     # keeps the topic; the model still sees only the current question.
     previous = next((t.content for t in reversed(body.history) if t.role == "user"), None)
     retrieval_text = f"{previous}\n{body.question}" if previous else body.question
-    query = await embedder.embed_query(retrieval_text)
-    hits = await vector_search(
-        db,
-        user_id=user.id,
-        query=query,
-        k=cfg.retrieval_k,
-        min_score=cfg.retrieval_min_score,
-        document_ids=body.document_ids,
-    )
 
-    # Materialised here, before the stream starts: the database session closes
-    # when this function returns, and the generator below must not touch ORM
-    # objects after that.
-    sources = [
-        Source(
-            index=i + 1,
-            chunk_id=hit.chunk.id,
-            document_id=hit.chunk.document_id,
-            document_title=hit.chunk.document.title,
-            position=hit.chunk.position,
-            text=hit.chunk.text,
-            score=round(hit.score, 4),
-        )
-        for i, hit in enumerate(hits)
-    ]
+    # Materialised before the stream starts: the database session closes when
+    # this function returns, and the generator below must not touch ORM
+    # objects after that. find_sources returns detached values for that reason.
+    sources = await find_sources(
+        db, embedder, user_id=user.id, text=retrieval_text, document_ids=body.document_ids
+    )
 
     history: list[Turn] = [{"role": t.role, "content": t.content} for t in body.history]
 
