@@ -173,7 +173,7 @@ async def generate_cards(
         try:
             drafts = await ai.generate_flashcards(chunk.text, count=want)
         except AiUnavailable as exc:
-            raise HTTPException(status.HTTP_502_BAD_GATEWAY, exc.detail) from exc
+            raise HTTPException(exc.status_code, exc.detail) from exc
 
         for draft in drafts:
             card = Card(

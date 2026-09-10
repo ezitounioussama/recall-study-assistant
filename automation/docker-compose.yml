@@ -1,0 +1,54 @@
+# The automation, and a real SMTP server to deliver into.
+#
+# The Recall API is NOT in here: it needs Ollama, which listens on 127.0.0.1,
+# so a bridged container cannot reach it. Run the API on the host and let n8n
+# call it through host.docker.internal — which is also the realistic shape,
+# since the API is a thing you already deployed and the automation is what you
+# point at it.
+#
+#   cd api && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8100
+#   cd automation && cp .env.example .env && docker compose up -d
+#
+# n8n      http://localhost:5679   the workflow
+# mailpit  http://localhost:8026   the inbox it delivers to
+#
+# The ports are 5679/8026 rather than the usual 5678/8025 so this stack can run
+# beside another n8n without either winning.
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.37.7
+    ports:
+      - "5679:5678"
+    environment:
+      # Without a fixed key, every restart re-generates one and the stored SMTP
+      # credential becomes undecryptable.
+      N8N_ENCRYPTION_KEY: "${N8N_ENCRYPTION_KEY:-local-dev-key-not-a-secret}"
+      N8N_SECURE_COOKIE: "false"          # plain http on localhost
+      WEBHOOK_URL: "http://localhost:5679/"
+      GENERIC_TIMEZONE: "${TZ:-Africa/Casablanca}"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_RUNNERS_ENABLED: "true"
+      # The workflow reads these through $env rather than holding them in a
+      # node parameter, where they would be exported into the committed JSON.
+      RECALL_API_URL: "${RECALL_API_URL:-http://host.docker.internal:8100}"
+      RECALL_EMAIL: "${RECALL_EMAIL:?set RECALL_EMAIL in automation/.env}"
+      RECALL_PASSWORD: "${RECALL_PASSWORD:?set RECALL_PASSWORD in automation/.env}"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"   # lets $env read the three above
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./n8n:/workflows:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports:
+      - "1026:1025"      # SMTP, what n8n sends to
+      - "8026:8025"      # web UI, where the delivered mail is visible
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+
+volumes:
+  n8n-data:

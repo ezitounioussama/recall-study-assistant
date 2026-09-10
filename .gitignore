@@ -28,3 +28,6 @@ uploads/
 api/recall.sqlite3
 api/test-recall.sqlite3
 api/.venv/
+automation/.env
+mcp-server/.venv/
+mcp-server/__pycache__/

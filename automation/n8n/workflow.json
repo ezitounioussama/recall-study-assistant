@@ -1,0 +1,293 @@
+{
+  "name": "Recall daily review reminder",
+  "id": "recall-daily-review",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Casablanca"
+  },
+  "pinData": {},
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "every-morning-at-0800",
+      "name": "Every morning at 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.RECALL_API_URL }}/auth/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "username",
+              "value": "={{ $env.RECALL_EMAIL }}"
+            },
+            {
+              "name": "password",
+              "value": "={{ $env.RECALL_PASSWORD }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "sign-in-to-recall",
+      "name": "Sign in to Recall",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.RECALL_API_URL }}/cards/stats",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "how-much-is-due",
+      "name": "How much is due?",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        20,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "due-now-positive",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "leftValue": "={{ $json.due_now }}",
+              "rightValue": 0
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "anything-due-today",
+      "name": "Anything due today?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.RECALL_API_URL }}/cards/due?limit=5",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Sign in to Recall').item.json.access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "what-is-due",
+      "name": "What is due",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// One email out of two API responses.\n//\n// $input.all() is the card list; the counts come from the stats node by name,\n// so this does not depend on the order n8n happened to merge things in.\nconst cards = $input.all().map(item => item.json);\nconst stats = $('How much is due?').first().json;\n\nconst plural = n => (n === 1 ? '' : 's');\nconst preview = cards\n  .map((card, i) => `  ${i + 1}. ${card.front}`)\n  .join('\\n');\nconst more = stats.due_now > cards.length\n  ? `\\n  \u2026 and ${stats.due_now - cards.length} more.`\n  : '';\n\nconst retention = stats.retention_30d === null\n  ? 'no reviews yet'\n  : `${Math.round(stats.retention_30d * 100)}% of your last 30 days' reviews were remembered`;\n\nconst body = [\n  `You have ${stats.due_now} card${plural(stats.due_now)} due today.`,\n  '',\n  preview + more,\n  '',\n  `Deck: ${stats.total} card${plural(stats.total)} \u00b7 ${retention}.`,\n  '',\n  'Review them: http://localhost:3100/review',\n].join('\\n');\n\nreturn [{ json: { subject: `Recall: ${stats.due_now} card${plural(stats.due_now)} due today`, body, due: stats.due_now } }];"
+      },
+      "id": "write-the-reminder",
+      "name": "Write the reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "recall@localhost",
+        "toEmail": "={{ $env.RECALL_EMAIL }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "email-the-student",
+      "name": "Email the student",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        900,
+        200
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "mailpit-local-smtp",
+          "name": "Mailpit local SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "nothing-due-stop-quietly",
+      "name": "Nothing due: stop quietly",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        460,
+        420
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "run-it-now",
+      "name": "Run it now",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        440
+      ],
+      "notes": "For demonstrating and testing. The schedule above is what runs in production."
+    }
+  ],
+  "connections": {
+    "Every morning at 08:00": {
+      "main": [
+        [
+          {
+            "node": "Sign in to Recall",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign in to Recall": {
+      "main": [
+        [
+          {
+            "node": "How much is due?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "How much is due?": {
+      "main": [
+        [
+          {
+            "node": "Anything due today?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anything due today?": {
+      "main": [
+        [
+          {
+            "node": "What is due",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nothing due: stop quietly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "What is due": {
+      "main": [
+        [
+          {
+            "node": "Write the reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write the reminder": {
+      "main": [
+        [
+          {
+            "node": "Email the student",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run it now": {
+      "main": [
+        [
+          {
+            "node": "Sign in to Recall",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
