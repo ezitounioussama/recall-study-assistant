@@ -50,6 +50,8 @@ with their endpoints and status, and the plan against the lab's seven phases.
 | `docs/` | plan, roadmap, workflow tour with screenshots, design specification |
 | `requirements.txt` · `.env.example` | root index files; the real ones sit in `api/` and `web/` |
 
+Lab phase write-ups: [phase 1 — product plan](docs/product-plan.md) · [phase 2 — backend foundation](docs/phase-2-backend-foundation.md)
+
 ## See it work
 
 [`docs/workflow.md`](docs/workflow.md) walks the whole product end to end with screenshots from a real run — credentials, start commands, every screen, the API, the models, and what to do when something looks wrong.
