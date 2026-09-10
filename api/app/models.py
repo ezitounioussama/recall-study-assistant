@@ -2,7 +2,8 @@
 
 Each table arrives with the pull request that reads it — a table with no reader
 is a guess about the future. Auth brought users and sessions; documents and
-chunks came with retrieval; cards and review logs with the scheduler.
+chunks came with retrieval; cards and review logs with the scheduler; study
+sessions and generated content with the study history.
 """
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text, func
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -18,6 +19,18 @@ from app.db import Base
 
 def _uuid() -> str:
     return str(uuid.uuid4())
+
+
+def _now() -> dt.datetime:
+    """Creation time, to the microsecond.
+
+    SQLite's CURRENT_TIMESTAMP — what `server_default=func.now()` becomes —
+    resolves to whole seconds. Three rows written in the same second then tie,
+    and "newest first" falls back to a random uuid, so a list of what you just
+    did comes back shuffled. Stamping the time here fixes the order and makes
+    it timezone-aware at the same time.
+    """
+    return dt.datetime.now(dt.timezone.utc)
 
 
 class User(Base):
@@ -44,6 +57,9 @@ class User(Base):
         back_populates="user", cascade="all, delete-orphan"
     )
     documents: Mapped[list["Document"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    study_sessions: Mapped[list["StudySession"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 
@@ -89,9 +105,8 @@ class Document(Base):
     size_bytes: Mapped[int] = mapped_column(Integer)
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
 
-    created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    # Ordered by this in the library, so it needs sub-second resolution.
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     user: Mapped[User] = relationship(back_populates="documents")
     chunks: Mapped[list["Chunk"]] = relationship(
@@ -197,3 +212,75 @@ class ReviewLog(Base):
     reviewed_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), index=True)
 
     card: Mapped[Card] = relationship(back_populates="reviews")
+
+
+class StudySession(Base):
+    """One thing the student asked the assistant for.
+
+    A session is the unit the history screen lists: a question asked of the
+    notes, a summary requested, a quiz generated, a document turned into cards.
+    What came back hangs off it as `contents` — usually one row, but a request
+    that produced several artefacts keeps them together under one heading.
+
+    `document_id` is SET NULL rather than CASCADE: deleting a document should
+    not erase the record that you studied it, the same choice `Card` makes.
+    """
+
+    __tablename__ = "study_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    document_id: Mapped[str | None] = mapped_column(
+        ForeignKey("documents.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
+    # What was asked for: chat, explain, summarise, quiz, flashcards.
+    kind: Mapped[str] = mapped_column(String(16), index=True)
+    # The question, or the title of the material it was about — whatever makes
+    # the row recognisable in a list a week later.
+    topic: Mapped[str] = mapped_column(String(300))
+    # Which model wrote it. Answers from a 3B and an 8B model are not the same
+    # artefact, and a history that hides which one produced this is misleading.
+    model: Mapped[str] = mapped_column(String(80), default="")
+
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+    user: Mapped[User] = relationship(back_populates="study_sessions")
+    contents: Mapped[list["GeneratedContent"]] = relationship(
+        back_populates="session",
+        cascade="all, delete-orphan",
+        order_by="GeneratedContent.created_at",
+    )
+
+
+class GeneratedContent(Base):
+    """What the model produced, kept as both prose and structure.
+
+    `text` is what a person reads. `data` is the structured payload — the quiz
+    questions, the card fronts and backs, the passages cited — so the history
+    can re-render an artefact rather than only quote it.
+
+    `user_id` is copied from the session for the same reason `Chunk` copies it:
+    every query here is "this user's history", and the ownership filter should
+    not need a join. The session row stays the source of truth.
+    """
+
+    __tablename__ = "generated_content"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("study_sessions.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+
+    kind: Mapped[str] = mapped_column(String(16))
+    text: Mapped[str] = mapped_column(Text, default="")
+    data: Mapped[dict | list | None] = mapped_column(JSON, nullable=True)
+    # False when the assistant refused because the material did not cover it.
+    # Worth keeping: a history full of refusals is a signal about the library,
+    # not about the student.
+    grounded: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    session: Mapped[StudySession] = relationship(back_populates="contents")

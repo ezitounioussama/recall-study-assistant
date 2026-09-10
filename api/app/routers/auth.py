@@ -1,18 +1,32 @@
-"""Registration, login, logout, and "who am I"."""
+"""Registration, login, logout, and "who am I".
+
+Two credentials are accepted, for two kinds of client:
+
+* a **session cookie** for the browser — HttpOnly so no script can read it,
+  SameSite=Lax against CSRF, and backed by a row so signing out is immediate;
+* a **bearer token** for anything without a cookie jar — the n8n automation,
+  the MCP tool, curl, Swagger's Authorize button.
+
+Both answer the same question: which user is this? Nothing else in the
+application knows or cares which one was used.
+"""
 
 from __future__ import annotations
 
 import datetime as dt
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import get_session
 from app.models import Session, User
-from app.schemas import Credentials, Message, PublicUser, Registration
+from app.schemas import Credentials, Message, PublicUser, Registration, TokenOut
 from app.security import (
+    create_access_token,
+    decode_access_token,
     hash_password,
     needs_rehash,
     session_expiry,
@@ -27,6 +41,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # an attacker which addresses are registered, which turns a login form into an
 # account-enumeration oracle.
 INVALID = "Email or password is incorrect."
+
+# auto_error=False: a missing Authorization header is not an error here, it
+# just means the caller is a browser and the cookie is checked instead.
+# Naming the token URL is what puts the Authorize button in Swagger.
+bearer_scheme = OAuth2PasswordBearer(tokenUrl="auth/token", auto_error=False)
 
 
 def _set_cookie(response: Response, session_id: str) -> None:
@@ -47,10 +66,29 @@ def _set_cookie(response: Response, session_id: str) -> None:
 
 async def current_user(
     session_cookie: str | None = Cookie(default=None, alias="recall_session"),
+    token: str | None = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_session),
 ) -> User:
-    """Dependency for any endpoint that needs a signed-in user."""
-    unauthorised = HTTPException(status.HTTP_401_UNAUTHORIZED, "Not signed in.")
+    """Dependency for any endpoint that needs a signed-in user.
+
+    A bearer token wins when both are present: an explicit Authorization
+    header is a deliberate act, where a cookie rides along by default.
+    """
+    unauthorised = HTTPException(
+        status.HTTP_401_UNAUTHORIZED, "Not signed in.", headers={"WWW-Authenticate": "Bearer"}
+    )
+
+    if token:
+        user_id = decode_access_token(token)
+        if user_id is None:
+            raise unauthorised
+        # The signature proves the token was issued by this service and has not
+        # expired. It does not prove the account still exists: a token outlives
+        # the user it names, so the row is still looked up.
+        bearer_user = await db.get(User, user_id)
+        if bearer_user is None:
+            raise unauthorised
+        return bearer_user
 
     if not session_cookie:
         raise unauthorised
@@ -128,6 +166,32 @@ async def login(
 
     _set_cookie(response, session.id)
     return user
+
+
+@router.post("/token", response_model=TokenOut, summary="Get a bearer token")
+async def token(
+    form: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_session),
+) -> TokenOut:
+    """Exchange an email and password for a bearer token.
+
+    The OAuth2 password flow, so Swagger's Authorize button and every HTTP
+    client already know how to use it — the email goes in the `username`
+    field. `/auth/login` remains the browser's door; this one is for scripts.
+    """
+    email = form.username.strip().lower()
+    user = await db.scalar(select(User).where(User.email == email))
+    if user is None or not verify_password(user.password_hash, form.password):
+        # The same sentence as /auth/login, for the same reason: a different
+        # message for "no such account" turns this into an address checker.
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, INVALID, headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    return TokenOut(
+        access_token=create_access_token(user.id),
+        expires_in=settings().access_token_expire_minutes * 60,
+    )
 
 
 @router.post("/logout", response_model=Message)

@@ -35,6 +35,7 @@ from app.schemas import ChatRequest, Source
 
 # The prompt, the refusal and the citation check live in the AI service, so
 # this router only moves data: retrieve, hand over, relay.
+from app.services.study_history import Artefact, Recording, record_detached
 from app.services.ai_service import (  # noqa: E402 - grouped with the app imports on purpose
     HISTORY_TURNS,
     REFUSAL,
@@ -98,6 +99,9 @@ async def chat(
         if not sources:
             yield _sse("token", {"text": REFUSAL})
             yield _sse("done", {"answer": REFUSAL, "grounded": False, "citations": []})
+            # A refusal is history too: a run of them says the library is thin
+            # on a topic, which is worth being able to see.
+            await _remember(REFUSAL, grounded=False, citations=[])
             return
 
         parts: list[str] = []
@@ -112,13 +116,49 @@ async def chat(
             return
 
         answer = "".join(parts).strip()
-        yield _sse(
-            "done",
-            {
-                "answer": answer,
-                "grounded": REFUSAL.lower() not in answer.lower(),
-                "citations": AiService.citations(answer, len(sources)),
-            },
+        grounded = REFUSAL.lower() not in answer.lower()
+        citations = AiService.citations(answer, len(sources))
+        yield _sse("done", {"answer": answer, "grounded": grounded, "citations": citations})
+        await _remember(answer, grounded=grounded, citations=citations)
+
+    async def _remember(answer: str, *, grounded: bool, citations: list[int]) -> None:
+        """Save the answer to the study history.
+
+        Detached, because FastAPI closed this handler's database session when
+        it returned the StreamingResponse — the generator above runs after
+        that. The passages are stored by reference rather than in full: the
+        chunk rows already hold the text, and copying five of them into every
+        history entry would grow the database faster than the library does.
+        """
+        await record_detached(
+            Recording(
+                user_id=user.id,
+                kind="chat",
+                topic=body.question,
+                model=cfg.chat_model,
+                document_id=body.document_ids[0] if body.document_ids and len(body.document_ids) == 1 else None,
+                artefacts=[
+                    Artefact(
+                        kind="answer",
+                        text=answer,
+                        data={
+                            "citations": citations,
+                            "sources": [
+                                {
+                                    "index": s.index,
+                                    "chunk_id": s.chunk_id,
+                                    "document_id": s.document_id,
+                                    "document_title": s.document_title,
+                                    "position": s.position,
+                                    "score": s.score,
+                                }
+                                for s in sources
+                            ],
+                        },
+                        grounded=grounded,
+                    )
+                ],
+            )
         )
 
     return StreamingResponse(

@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__
 from app.config import settings
 from app.db import create_all
-from app.routers import auth, cards, chat, documents, ops
+from app.routers import auth, cards, chat, documents, ops, study
 
 
 @asynccontextmanager
@@ -30,7 +30,7 @@ app = FastAPI(
         "Cited answers and spaced repetition from a student's own notes. "
         "Upload material, ask questions answered only from it with citations, "
         "generate flashcards, and review them on an FSRS schedule. "
-        "Every route except `/`, `/health`, `/auth/register` and `/auth/login` needs the session cookie."
+        "Every route except `/`, `/health`, `/auth/register`, `/auth/login` and `/auth/token` needs a credential: the session cookie a browser gets from `/auth/login`, or a bearer token from `/auth/token`."
     ),
     contact={"name": "Oussama Ezitouni", "url": "https://github.com/ezitounioussama/recall-study-assistant"},
     lifespan=lifespan,
@@ -52,3 +52,4 @@ app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(chat.router)
 app.include_router(cards.router)
+app.include_router(study.router)
