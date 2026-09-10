@@ -17,6 +17,7 @@ from app.config import settings
 from app.db import get_session
 from app.fsrs import Memory, Rating, Scheduler, State
 from app.services.ai_service import AiService, AiUnavailable, get_ai_service
+from app.services.study_history import Artefact, Recording, record
 from app.models import Card, Chunk, Document, ReviewLog, User
 from app.routers.auth import current_user
 from app.schemas import (
@@ -194,6 +195,28 @@ async def generate_cards(
     await db.commit()
     for card in created:
         await db.refresh(card)
+
+    if created:
+        # One session for the whole generation, not one per card: the student
+        # pressed the button once, and the history should read that way.
+        await record(
+            db,
+            Recording(
+                user_id=user.id,
+                kind="flashcards",
+                topic=document.title,
+                model=settings().chat_model,
+                document_id=document.id,
+                artefacts=[
+                    Artefact(
+                        kind="flashcards",
+                        text=f"{len(created)} cards from “{document.title}”",
+                        data=[{"id": c.id, "front": c.front, "back": c.back} for c in created],
+                    )
+                ],
+            ),
+        )
+
     return [_card_out(c, now) for c in created]
 
 

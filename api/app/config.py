@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     session_cookie_name: str = "recall_session"
     session_max_age_seconds: int = 60 * 60 * 24 * 14  # two weeks
 
+    # Bearer tokens, for clients that cannot hold a cookie: the n8n automation,
+    # the MCP tool, curl. Signed with the same secret as the cookie, and short
+    # lived because a bearer token has no server-side row to delete — revoking
+    # one before it expires is not possible, so it should not live long.
+    access_token_expire_minutes: int = 60 * 12
+    jwt_algorithm: str = "HS256"
+
     # False for local http development. True in production — a session cookie
     # sent over plain http is a session cookie anyone on the network has.
     cookie_secure: bool = False

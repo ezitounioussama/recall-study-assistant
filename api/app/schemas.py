@@ -39,6 +39,14 @@ class Message(BaseModel):
     detail: str
 
 
+class TokenOut(BaseModel):
+    """An OAuth2 password-flow response, which is what Swagger's Authorize expects."""
+
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+    expires_in: int = Field(description="Seconds until the token stops being accepted")
+
+
 # ---- documents and retrieval ------------------------------------------------
 
 
@@ -228,3 +236,32 @@ class FlashcardDraft(BaseModel):
 
     front: str
     back: str
+
+
+# ---- study history ---------------------------------------------------------------
+
+
+class GeneratedContentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    kind: str
+    text: str
+    data: dict | list | None = None
+    grounded: bool
+    created_at: dt.datetime
+
+
+class StudySessionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    kind: str
+    topic: str
+    document_id: str | None
+    model: str
+    created_at: dt.datetime
+
+
+class StudySessionDetail(StudySessionOut):
+    contents: list[GeneratedContentOut]
