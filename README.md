@@ -36,6 +36,20 @@ Then open **http://localhost:3100** and sign in:
 Seeded by [`api/app/seed.py`](api/app/seed.py), which is idempotent — running it
 again resets that password rather than failing.
 
+## Plan and structure
+
+[`docs/product-plan.md`](docs/product-plan.md) — the idea, the user, the problem,
+the five AI features (explain, summarise, quiz, flashcards, revision checklist)
+with their endpoints and status, and the plan against the lab's seven phases.
+
+| | |
+|---|---|
+| `api/app/` | the FastAPI application (routers, models, AI service, FSRS) |
+| `api/tests/` | 93 tests, no model needed |
+| `web/` | the Next.js client |
+| `docs/` | plan, roadmap, workflow tour with screenshots, design specification |
+| `requirements.txt` · `.env.example` | root index files; the real ones sit in `api/` and `web/` |
+
 ## See it work
 
 [`docs/workflow.md`](docs/workflow.md) walks the whole product end to end with screenshots from a real run — credentials, start commands, every screen, the API, the models, and what to do when something looks wrong.
