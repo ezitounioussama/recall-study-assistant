@@ -1,4 +1,8 @@
-"""The Recall API."""
+"""The Recall API.
+
+Run:   uvicorn app.main:app --port 8100
+Docs:  http://localhost:8100/docs
+"""
 
 from __future__ import annotations
 
@@ -7,9 +11,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import __version__
 from app.config import settings
 from app.db import create_all
-from app.routers import auth, cards, chat, documents
+from app.routers import auth, cards, chat, documents, ops
 
 
 @asynccontextmanager
@@ -20,8 +25,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Recall API",
-    version="0.5.0",
-    description="Auth, documents, retrieval, cited chat, and an FSRS review schedule.",
+    version=__version__,
+    description=(
+        "Cited answers and spaced repetition from a student's own notes. "
+        "Upload material, ask questions answered only from it with citations, "
+        "generate flashcards, and review them on an FSRS schedule. "
+        "Every route except `/`, `/health`, `/auth/register` and `/auth/login` needs the session cookie."
+    ),
+    contact={"name": "Oussama Ezitouni", "url": "https://github.com/ezitounioussama/recall-study-assistant"},
     lifespan=lifespan,
 )
 
@@ -36,13 +47,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(ops.router)
 app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(chat.router)
 app.include_router(cards.router)
-
-
-@app.get("/health", tags=["ops"])
-async def health() -> dict[str, str]:
-    """Liveness. Touches nothing, so it stays honest about being cheap."""
-    return {"status": "ok"}
