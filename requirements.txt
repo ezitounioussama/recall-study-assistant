@@ -1,0 +1,4 @@
+# The Python application lives in api/. This file exists so the repository root
+# matches the lab's expected layout; it installs exactly what api/ needs.
+#   uv venv --python 3.12 && uv pip install -r requirements.txt
+-r api/requirements.txt
