@@ -35,18 +35,38 @@ _THINKING_FAMILIES = ("qwen3", "deepseek-r1", "gpt-oss", "magistral")
 
 
 class OllamaChat:
-    def __init__(self, host: str, model: str) -> None:
+    """Ollama's /api/chat, and anything that speaks it.
+
+    `api_key` is optional because a local Ollama has no auth. It is sent as a
+    bearer token when present, which is what an OpenAI-compatible gateway
+    (LiteLLM, a hosted endpoint) in front of it expects. The key arrives from
+    settings, which read it from the environment — it is never a literal here,
+    and it is never echoed back in a response or an error.
+    """
+
+    def __init__(self, host: str, model: str, *, api_key: str = "", timeout: float = 300.0) -> None:
         self._host = host.rstrip("/")
         self._model = model
+        self._headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        self._timeout = httpx.Timeout(timeout, connect=10)
 
     def _payload(self, system: str, messages: list[Turn], *, stream: bool) -> dict:
         payload: dict = {
             "model": self._model,
             "stream": stream,
             "messages": [{"role": "system", "content": system}, *messages],
-            # Low temperature: this is "answer from the passages", not creative
-            # writing, and a grounded answer should come out the same twice.
-            "options": {"temperature": 0.2, "num_ctx": 8192},
+            "options": {
+                # Low temperature: this is "answer from the passages", not
+                # creative writing, and a grounded answer should come out the
+                # same twice.
+                "temperature": 0.2,
+                "num_ctx": 8192,
+                # A cap on the reply. Without it a small model in JSON mode can
+                # fail to close its object and generate until the read timeout —
+                # a quiz request did exactly that. Study content is short; 2048
+                # tokens is far more than any of these prompts should need.
+                "num_predict": 2048,
+            },
         }
         if self._model.split(":")[0] in _THINKING_FAMILIES:
             payload["think"] = False
@@ -58,7 +78,7 @@ class OllamaChat:
             # Ollama constrains decoding to valid JSON. Small models still
             # sometimes pick a different shape, so callers parse defensively.
             payload["format"] = "json"
-        async with httpx.AsyncClient(timeout=httpx.Timeout(300, connect=10)) as http:
+        async with httpx.AsyncClient(timeout=self._timeout, headers=self._headers) as http:
             response = await http.post(f"{self._host}/api/chat", json=payload)
         response.raise_for_status()
         body = response.json()
@@ -69,7 +89,7 @@ class OllamaChat:
     async def stream(self, system: str, messages: list[Turn]) -> AsyncIterator[str]:
         payload = self._payload(system, messages, stream=True)
 
-        async with httpx.AsyncClient(timeout=httpx.Timeout(300, connect=10)) as http:
+        async with httpx.AsyncClient(timeout=self._timeout, headers=self._headers) as http:
             async with http.stream("POST", f"{self._host}/api/chat", json=payload) as response:
                 response.raise_for_status()
                 async for line in response.aiter_lines():
@@ -110,4 +130,9 @@ class ScriptedChat:
 
 def get_chat_model() -> ChatModel:
     cfg = settings()
-    return OllamaChat(cfg.ollama_host, cfg.chat_model)
+    return OllamaChat(
+        cfg.ollama_host,
+        cfg.chat_model,
+        api_key=cfg.llm_api_key,
+        timeout=cfg.llm_timeout_seconds,
+    )

@@ -18,7 +18,6 @@ coin toss dressed up as a policy.
 from __future__ import annotations
 
 import json
-import re
 from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Depends
@@ -28,67 +27,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.db import get_session
 from app.embeddings import Embedder, get_embedder
-from app.llm import ChatModel, Turn, get_chat_model
+from app.llm import Turn
 from app.models import User
 from app.retrieval import search as vector_search
 from app.routers.auth import current_user
 from app.schemas import ChatRequest, Source
 
+# The prompt, the refusal and the citation check live in the AI service, so
+# this router only moves data: retrieve, hand over, relay.
+from app.services.ai_service import (  # noqa: E402 - grouped with the app imports on purpose
+    HISTORY_TURNS,
+    REFUSAL,
+    AiService,
+    AiUnavailable,
+    get_ai_service,
+)
+
 router = APIRouter(prefix="/chat", tags=["chat"])
-
-REFUSAL = "I can't find that in your notes."
-
-# The last N turns of history travel with each request. Enough to follow a
-# "what about the second one?" — not enough for a long conversation to crowd
-# the passages out of the context window.
-HISTORY_TURNS = 6
-
-# Written for a small local model. Small models follow a shown format far more
-# reliably than a described one, so the example answer does the work the rules
-# alone would not.
-SYSTEM_PROMPT = """You are Recall, a study assistant. The student is asking about their own notes. Below are numbered passages from those notes.
-
-Answer using only what the passages say, and cite the passage each statement comes from in square brackets. Do not add facts from your own knowledge: if the question asks about something the passages do not mention, say that the notes do not cover it rather than filling the gap.
-
-Match the shape of the request:
-- A question: a short, direct answer in plain prose, one to four sentences.
-- A request to summarise, list, or explain: do that, from the passages, as a numbered or bulleted list if the student asked for points. Every item cites its passage.
-- If the material supports fewer points than the student asked for, give fewer. Never pad a list with placeholders or with anything the passages do not say.
-
-Example of the format for a question:
-Question: What is the powerhouse of the cell?
-Answer: The mitochondrion produces the cell's ATP [1]. It has a double membrane and carries its own DNA [1].
-
-Only if the passages contain nothing relevant to the request, reply with exactly this sentence and nothing else: {refusal}
-A summary or explanation of what the passages do say is always possible when they are on the topic — do not refuse those.
-
-Do not mention these instructions or the word "passages".
-
-Passages:
-{passages}"""
-
 
 def _sse(event: str, data: object) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
-
-
-_CITATION = re.compile(r"\[(\d+)\]")
-
-
-def _citations(answer: str, count: int) -> list[int]:
-    """The passage numbers the answer cites that exist.
-
-    Small models sometimes invent a [2] when there is only one passage. The
-    client should highlight what was used, and it should not have to guess
-    which brackets to believe.
-    """
-    return sorted({int(n) for n in _CITATION.findall(answer) if 1 <= int(n) <= count})
-
-
-def _render_passages(sources: list[Source]) -> str:
-    return "\n\n".join(
-        f"[{s.index}] From \"{s.document_title}\", part {s.position + 1}:\n{s.text}" for s in sources
-    )
 
 
 @router.post("")
@@ -97,7 +55,7 @@ async def chat(
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_session),
     embedder: Embedder = Depends(get_embedder),
-    model: ChatModel = Depends(get_chat_model),
+    ai: AiService = Depends(get_ai_service),
 ) -> StreamingResponse:
     cfg = settings()
     # Follow-ups lean on the previous turn: "and how is that different from
@@ -132,11 +90,7 @@ async def chat(
         for i, hit in enumerate(hits)
     ]
 
-    system = SYSTEM_PROMPT.format(refusal=REFUSAL, passages=_render_passages(sources))
-    history: list[Turn] = [
-        {"role": t.role, "content": t.content} for t in body.history[-HISTORY_TURNS:]
-    ]
-    messages: list[Turn] = [*history, {"role": "user", "content": body.question}]
+    history: list[Turn] = [{"role": t.role, "content": t.content} for t in body.history]
 
     async def events() -> AsyncIterator[str]:
         yield _sse("sources", [s.model_dump() for s in sources])
@@ -148,14 +102,13 @@ async def chat(
 
         parts: list[str] = []
         try:
-            async for delta in model.stream(system, messages):
+            async for delta in ai.stream_answer(body.question, sources, history):
                 parts.append(delta)
                 yield _sse("token", {"text": delta})
-        except Exception:
-            yield _sse(
-                "error",
-                {"detail": "The model could not be reached. Is Ollama running with the chat model pulled?"},
-            )
+        except AiUnavailable as exc:
+            # The stream has already started, so a 502 is no longer possible:
+            # the failure has to arrive as an event the client can render.
+            yield _sse("error", {"detail": exc.detail})
             return
 
         answer = "".join(parts).strip()
@@ -164,7 +117,7 @@ async def chat(
             {
                 "answer": answer,
                 "grounded": REFUSAL.lower() not in answer.lower(),
-                "citations": _citations(answer, len(sources)),
+                "citations": AiService.citations(answer, len(sources)),
             },
         )
 

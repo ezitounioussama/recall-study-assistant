@@ -54,6 +54,17 @@ class Settings(BaseSettings):
     # switches off. Either is a settings change.
     chat_model: str = "llama3.2:3b"
 
+    # Ollama needs no key. An OpenAI-compatible gateway in front of it does, and
+    # so would a hosted provider — so the adapter sends `Authorization: Bearer`
+    # whenever this is set. It is read from the environment and never written in
+    # code; .env.example ships the name with no value.
+    llm_api_key: str = ""
+
+    # Seconds to wait for a model. Generous, because a CPU writing fifteen
+    # flashcards is slow, but bounded so a hung provider cannot hold a request
+    # open forever.
+    llm_timeout_seconds: float = 300.0
+
     # Passages scoring under this are not shown to the model, and a question
     # that retrieves none gets the fixed refusal. Calibrated on nomic-embed-text
     # cosine: relevant passages land at 0.8+, unrelated ones at 0.4-0.57.
