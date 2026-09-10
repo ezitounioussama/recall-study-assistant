@@ -8,8 +8,6 @@ and another user's card is a 404.
 from __future__ import annotations
 
 import datetime as dt
-import json
-import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -18,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.db import get_session
 from app.fsrs import Memory, Rating, Scheduler, State
-from app.llm import ChatModel, get_chat_model
+from app.services.ai_service import AiService, AiUnavailable, get_ai_service
 from app.models import Card, Chunk, Document, ReviewLog, User
 from app.routers.auth import current_user
 from app.schemas import (
@@ -35,18 +33,6 @@ from app.schemas import (
 router = APIRouter(prefix="/cards", tags=["cards"])
 
 scheduler = Scheduler()
-
-GENERATE_SYSTEM = """You write flashcards for a student from a passage of their own notes.
-
-Write exactly {n} flashcards. Each card has:
-- "front": one specific question that the passage answers
-- "back": the answer in one or two sentences, using the passage's own facts
-
-Only ask what the passage actually answers. Prefer why, how, and what-distinguishes questions over trivia. Do not number the cards.
-
-Respond with JSON only, in exactly this shape:
-{{"cards": [{{"front": "...", "back": "..."}}]}}"""
-
 
 # ---- helpers -----------------------------------------------------------------
 
@@ -118,39 +104,6 @@ async def _owned_document(document_id: str, user: User, db: AsyncSession) -> Doc
     return document
 
 
-_JSON_OBJECT = re.compile(r"\{.*\}|\[.*\]", re.DOTALL)
-
-
-def parse_cards(text: str) -> list[tuple[str, str]]:
-    """Pull (front, back) pairs out of whatever the model returned.
-
-    Accepts {"cards": [...]} or a bare list, tolerates prose around the JSON,
-    and drops entries missing either side. Returns [] rather than raising when
-    nothing usable is there — the caller decides what an empty result means.
-    """
-    match = _JSON_OBJECT.search(text)
-    if not match:
-        return []
-    try:
-        data = json.loads(match.group(0))
-    except json.JSONDecodeError:
-        return []
-
-    items = data.get("cards", []) if isinstance(data, dict) else data
-    if not isinstance(items, list):
-        return []
-
-    pairs: list[tuple[str, str]] = []
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        front = str(item.get("front", "")).strip()
-        back = str(item.get("back", "")).strip()
-        if front and back:
-            pairs.append((front[:2000], back[:4000]))
-    return pairs
-
-
 # ---- routes ------------------------------------------------------------------
 # Static paths first: "/due", "/stats" and "/generate" would otherwise be read
 # as card ids by "/{card_id}".
@@ -187,7 +140,7 @@ async def generate_cards(
     body: GenerateCards,
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_session),
-    model: ChatModel = Depends(get_chat_model),
+    ai: AiService = Depends(get_ai_service),
 ) -> list[CardOut]:
     """Write cards from every chunk of a document.
 
@@ -217,24 +170,17 @@ async def generate_cards(
             break
         want = min(body.per_chunk, budget - len(created))
         try:
-            reply = await model.complete(
-                GENERATE_SYSTEM.format(n=want),
-                [{"role": "user", "content": chunk.text}],
-                json_mode=True,
-            )
-        except Exception as exc:
-            raise HTTPException(
-                status.HTTP_502_BAD_GATEWAY,
-                "The model could not be reached. Is Ollama running with the chat model pulled?",
-            ) from exc
+            drafts = await ai.generate_flashcards(chunk.text, count=want)
+        except AiUnavailable as exc:
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, exc.detail) from exc
 
-        for front, back in parse_cards(reply)[:want]:
+        for draft in drafts:
             card = Card(
                 user_id=user.id,
                 document_id=document.id,
                 chunk_id=chunk.id,
-                front=front,
-                back=back,
+                front=draft.front,
+                back=draft.back,
                 due=now,
             )
             db.add(card)

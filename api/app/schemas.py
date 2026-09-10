@@ -185,3 +185,46 @@ class CardStats(BaseModel):
     # Mean retrievability across the deck right now — "how much of this do I
     # still know" in one number.
     mean_retrievability: float | None
+
+
+# ---- AI service output ---------------------------------------------------------
+#
+# What app/services/ai_service.py returns. Pydantic models rather than free
+# text, so a route can hand one straight back and its shape is in the OpenAPI
+# schema. `citations` and `source_index` refer to `Source.index`, the number
+# the client shows beside each passage.
+
+
+class Explanation(BaseModel):
+    topic: str
+    text: str
+    grounded: bool = Field(description="False when the material did not support an answer")
+    citations: list[int] = Field(default_factory=list)
+
+
+class Summary(BaseModel):
+    title: str
+    points: list[str] = Field(default_factory=list, description="One sentence each, ending in its citation")
+    grounded: bool = True
+    citations: list[int] = Field(default_factory=list)
+
+
+class QuizQuestion(BaseModel):
+    question: str
+    choices: list[str] = Field(min_length=2)
+    answer_index: int = Field(ge=0, description="Index into `choices`")
+    explanation: str = ""
+    source_index: int | None = Field(default=None, description="The passage this question came from")
+
+
+class QuizOut(BaseModel):
+    topic: str
+    difficulty: str
+    questions: list[QuizQuestion] = Field(default_factory=list)
+
+
+class FlashcardDraft(BaseModel):
+    """A card before it is saved and scheduled."""
+
+    front: str
+    back: str

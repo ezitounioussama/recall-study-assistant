@@ -9,7 +9,6 @@ import pytest
 
 from app.llm import ScriptedChat, get_chat_model
 from app.main import app
-from app.routers.cards import parse_cards
 from tests.conftest import register
 from tests.test_documents import BIOLOGY, upload
 
@@ -92,23 +91,6 @@ class TestGenerate:
         due = (await signed_in.get("/cards/due")).json()
         assert due[0]["source_title"] == "Bio week 1"
         assert "Mitochondria" in due[0]["source_text"]
-
-
-class TestParseCards:
-    def test_accepts_the_asked_for_shape(self):
-        assert parse_cards(CARDS_JSON)[0][0] == "What do mitochondria produce?"
-
-    def test_accepts_a_bare_list_wrapped_in_prose(self):
-        text = 'Here you go:\n[{"front": "Q", "back": "A"}]\nHope that helps!'
-        assert parse_cards(text) == [("Q", "A")]
-
-    def test_drops_half_cards_and_garbage(self):
-        text = '{"cards": [{"front": "Q"}, {"back": "A"}, "nope", {"front": "Q2", "back": "A2"}]}'
-        assert parse_cards(text) == [("Q2", "A2")]
-
-    def test_nothing_usable_is_an_empty_list(self):
-        assert parse_cards("no json here") == []
-        assert parse_cards('{"cards": "not a list"}') == []
 
 
 class TestReview:
