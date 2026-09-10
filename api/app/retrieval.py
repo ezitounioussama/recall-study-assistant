@@ -15,8 +15,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.embeddings import unpack
+from app.config import settings
+from app.embeddings import Embedder, unpack
 from app.models import Chunk
+from app.schemas import Source
 
 
 @dataclass(frozen=True)
@@ -54,4 +56,48 @@ async def search(
         Hit(chunk=chunks[int(i)], score=float(scores[i]))
         for i in order
         if float(scores[i]) >= min_score
+    ]
+
+
+async def find_sources(
+    db: AsyncSession,
+    embedder: Embedder,
+    *,
+    user_id: str,
+    text: str,
+    document_ids: list[str] | None = None,
+    k: int | None = None,
+    min_score: float | None = None,
+) -> list[Source]:
+    """Embed a question, search this user's chunks, and number what comes back.
+
+    The numbering is the contract: `Source.index` is what the model cites in
+    square brackets and what the client highlights, so it is assigned once,
+    here, rather than by each caller.
+
+    Returns detached values, not ORM rows. The chat endpoint needs that — it
+    streams, so its database session is closed by the time the answer is
+    written — and it costs the other callers nothing.
+    """
+    cfg = settings()
+    query = await embedder.embed_query(text)
+    hits = await search(
+        db,
+        user_id=user_id,
+        query=query,
+        k=cfg.retrieval_k if k is None else k,
+        min_score=cfg.retrieval_min_score if min_score is None else min_score,
+        document_ids=document_ids,
+    )
+    return [
+        Source(
+            index=i + 1,
+            chunk_id=hit.chunk.id,
+            document_id=hit.chunk.document_id,
+            document_title=hit.chunk.document.title,
+            position=hit.chunk.position,
+            text=hit.chunk.text,
+            score=round(hit.score, 4),
+        )
+        for i, hit in enumerate(hits)
     ]

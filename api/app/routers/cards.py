@@ -69,7 +69,7 @@ def _apply(card: Card, memory: Memory) -> None:
     card.last_review = memory.last_review
 
 
-def _card_out(card: Card, now: dt.datetime) -> CardOut:
+def card_out(card: Card, now: dt.datetime) -> CardOut:
     return CardOut(
         id=card.id,
         document_id=card.document_id,
@@ -133,7 +133,7 @@ async def create_card(
     db.add(card)
     await db.commit()
     await db.refresh(card)
-    return _card_out(card, now)
+    return card_out(card, now)
 
 
 @router.post("/generate", response_model=list[CardOut], status_code=status.HTTP_201_CREATED)
@@ -217,7 +217,7 @@ async def generate_cards(
             ),
         )
 
-    return [_card_out(c, now) for c in created]
+    return [card_out(c, now) for c in created]
 
 
 @router.get("", response_model=list[CardOut])
@@ -233,7 +233,7 @@ async def list_cards(
     if document_id:
         stmt = stmt.where(Card.document_id == document_id)
     now = _now()
-    return [_card_out(c, now) for c in (await db.scalars(stmt)).all()]
+    return [card_out(c, now) for c in (await db.scalars(stmt)).all()]
 
 
 @router.get("/due", response_model=list[DueCard])
@@ -271,7 +271,7 @@ async def due_cards(
         source = sources.get(card.chunk_id or "")
         out.append(
             DueCard(
-                **_card_out(card, now).model_dump(),
+                **card_out(card, now).model_dump(),
                 preview={
                     "again": _seconds_until(preview[Rating.AGAIN].due, now),
                     "hard": _seconds_until(preview[Rating.HARD].due, now),
@@ -342,7 +342,7 @@ async def stats(
 async def get_card(
     card_id: str, user: User = Depends(current_user), db: AsyncSession = Depends(get_session)
 ) -> CardOut:
-    return _card_out(await _owned(card_id, user, db), _now())
+    return card_out(await _owned(card_id, user, db), _now())
 
 
 @router.post("/{card_id}/review", response_model=ReviewResult)
@@ -381,7 +381,7 @@ async def review_card(
     await db.commit()
     await db.refresh(card)
     await db.refresh(log)
-    return ReviewResult(card=_card_out(card, now), log=ReviewLogOut.model_validate(log))
+    return ReviewResult(card=card_out(card, now), log=ReviewLogOut.model_validate(log))
 
 
 @router.delete("/{card_id}", status_code=status.HTTP_204_NO_CONTENT)
