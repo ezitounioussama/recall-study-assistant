@@ -37,6 +37,14 @@ SUMMARY_JSON = json.dumps(
     {"title": "Cell biology", "points": ["Mitochondria produce ATP [1].", "Chloroplasts capture light [1]."]}
 )
 CARDS_JSON = json.dumps({"cards": [{"front": "What produces ATP?", "back": "Mitochondria."}]})
+CHECKLIST_JSON = json.dumps(
+    {
+        "items": [
+            {"step": "Recall what mitochondria produce, without looking", "why": "the fact comes first", "source_index": 1},
+            {"step": "Explain oxidative phosphorylation out loud", "why": "shows the mechanism is understood", "source_index": 1},
+        ]
+    }
+)
 
 
 class Scripted:
@@ -61,6 +69,24 @@ class Broken:
 
     async def stream(self, system, messages):
         raise ConnectionError("no ollama")
+        yield  # pragma: no cover
+
+
+class TooSlow:
+    """A model that accepted the request and never answered."""
+
+    model = "llama3.2:3b"
+    timeout = 90.0
+
+    async def complete(self, system, messages, *, json_mode: bool = False) -> str:
+        import httpx
+
+        raise httpx.ReadTimeout("timed out")
+
+    async def stream(self, system, messages):
+        import httpx
+
+        raise httpx.ReadTimeout("timed out")
         yield  # pragma: no cover
 
 
@@ -241,10 +267,56 @@ class TestFlashcards:
         assert content["data"][0]["id"] == result["cards"][0]["id"]
 
 
+# ---- 5. revision checklist -----------------------------------------------------------
+
+
+class TestChecklist:
+    async def test_returns_ordered_steps(self, with_material):
+        use(Scripted(CHECKLIST_JSON))
+        result = (await with_material.post("/study/checklist", json=body(items=5))).json()
+
+        assert result["kind"] == "checklist"
+        steps = result["checklist"]["items"]
+        assert steps[0]["step"].startswith("Recall what mitochondria produce")
+        assert steps[0]["why"]
+        assert steps[0]["source_index"] == 1
+
+    async def test_the_step_count_reaches_the_model(self, with_material):
+        model = Scripted(CHECKLIST_JSON)
+        use(model)
+        await with_material.post("/study/checklist", json=body(items=4))
+        assert "4 steps" in model.calls[0][1][0]["content"]
+
+    async def test_it_is_saved_as_a_numbered_list_with_the_structure_beside_it(self, with_material):
+        use(Scripted(CHECKLIST_JSON))
+        result = (await with_material.post("/study/checklist", json=body())).json()
+
+        content = (await with_material.get(f"/study/history/{result['session_id']}")).json()["contents"][0]
+        assert content["kind"] == "checklist"
+        assert content["text"].startswith("1. Recall what mitochondria produce")
+        assert len(content["data"]["items"]) == 2
+
+    async def test_it_can_be_filtered_out_of_the_history(self, with_material):
+        use(Scripted(CHECKLIST_JSON))
+        await with_material.post("/study/checklist", json=body())
+        listed = (await with_material.get("/study/history?kind=checklist")).json()
+        assert [s["kind"] for s in listed] == ["checklist"]
+
+    async def test_nothing_to_revise_is_422(self, with_material):
+        use(Scripted(CHECKLIST_JSON))
+        assert (await with_material.post("/study/checklist", json={"topic": UNRELATED})).status_code == 422
+
+    async def test_a_model_that_returns_no_step_is_502(self, with_material):
+        use(Scripted("no json here"))
+        response = await with_material.post("/study/checklist", json=body())
+        assert response.status_code == 502
+        assert "usable step" in response.json()["detail"]
+
+
 # ---- shared behaviour ----------------------------------------------------------------
 
 
-ENDPOINTS = ["/study/explain", "/study/summarise", "/study/quiz", "/study/flashcards"]
+ENDPOINTS = ["/study/explain", "/study/summarise", "/study/quiz", "/study/flashcards", "/study/checklist"]
 
 
 class TestValidation:
@@ -265,6 +337,8 @@ class TestValidation:
             ("/study/quiz", {"difficulty": "impossible"}),
             ("/study/flashcards", {"count": 0}),
             ("/study/flashcards", {"count": 21}),
+            ("/study/checklist", {"items": 0}),
+            ("/study/checklist", {"items": 13}),
         ],
     )
     async def test_out_of_range_options_are_refused(self, with_material, endpoint, payload):
@@ -323,3 +397,27 @@ class TestModelFailure:
         response = await with_material.post(endpoint, json=body())
         assert response.status_code == 502
         assert "Ollama" in response.json()["detail"]
+
+    @pytest.mark.parametrize("endpoint", ENDPOINTS)
+    async def test_a_model_that_is_too_slow_is_504_and_says_what_to_do(self, with_material, endpoint):
+        """Different from unreachable: the model answered the door and then stalled."""
+        use(TooSlow())
+        response = await with_material.post(endpoint, json=body())
+
+        assert response.status_code == 504
+        detail = response.json()["detail"]
+        assert "took longer than 90 seconds" in detail
+        assert "shorter topic" in detail
+
+    async def test_a_stream_that_times_out_mid_answer_becomes_an_error_event(self, with_material):
+        """The response has already started, so a 504 is no longer possible."""
+        use(TooSlow())
+        events: list[str] = []
+        async with with_material.stream("POST", "/chat", json={"question": "what do mitochondria produce"}) as response:
+            assert response.status_code == 200
+            async for line in response.aiter_lines():
+                if line.startswith("event: ") or line.startswith("data: "):
+                    events.append(line)
+
+        assert "event: error" in events
+        assert any("took longer than" in line for line in events)

@@ -44,15 +44,28 @@ class OllamaChat:
     and it is never echoed back in a response or an error.
     """
 
-    def __init__(self, host: str, model: str, *, api_key: str = "", timeout: float = 300.0) -> None:
+    def __init__(
+        self,
+        host: str,
+        model: str,
+        *,
+        api_key: str = "",
+        timeout: float = 300.0,
+        connect_timeout: float = 5.0,
+    ) -> None:
         self._host = host.rstrip("/")
-        self._model = model
+        self.model = model
+        self.timeout = timeout
         self._headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
-        self._timeout = httpx.Timeout(timeout, connect=10)
+        # Two numbers, because they mean different things. A connection that
+        # is not accepted in five seconds will not be accepted in five
+        # minutes; a model that has accepted the request and is writing
+        # deserves the long one.
+        self._timeout = httpx.Timeout(timeout, connect=connect_timeout)
 
     def _payload(self, system: str, messages: list[Turn], *, stream: bool) -> dict:
         payload: dict = {
-            "model": self._model,
+            "model": self.model,
             "stream": stream,
             "messages": [{"role": "system", "content": system}, *messages],
             "options": {
@@ -68,7 +81,7 @@ class OllamaChat:
                 "num_predict": 2048,
             },
         }
-        if self._model.split(":")[0] in _THINKING_FAMILIES:
+        if self.model.split(":")[0] in _THINKING_FAMILIES:
             payload["think"] = False
         return payload
 
@@ -105,13 +118,16 @@ class OllamaChat:
                         return
 
 
-class ScriptedChat:
+class ScriptedChat:  # noqa: D101 - documented below
     """Replays a fixed reply one word at a time and records what it was asked.
 
     For tests: the interesting assertions are about what the router sends the
     model (the passages, the question, the bounded history) and how it relays
     the stream, and neither needs a real model.
     """
+
+    model = "scripted"
+    timeout = 0.0
 
     def __init__(self, reply: str) -> None:
         self.reply = reply
@@ -135,4 +151,5 @@ def get_chat_model() -> ChatModel:
         cfg.chat_model,
         api_key=cfg.llm_api_key,
         timeout=cfg.llm_timeout_seconds,
+        connect_timeout=cfg.llm_connect_timeout_seconds,
     )

@@ -23,6 +23,7 @@ somewhere behind the `ChatModel` interface.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from collections.abc import AsyncIterator, Sequence
@@ -31,7 +32,16 @@ import httpx
 from fastapi import Depends
 
 from app.llm import ChatModel, Turn, get_chat_model
-from app.schemas import Explanation, FlashcardDraft, QuizOut, QuizQuestion, Source, Summary
+from app.schemas import (
+    ChecklistItem,
+    ChecklistOut,
+    Explanation,
+    FlashcardDraft,
+    QuizOut,
+    QuizQuestion,
+    Source,
+    Summary,
+)
 
 # The sentence the assistant says instead of guessing. Fixed, so the client can
 # recognise it and the tests can assert on it.
@@ -44,15 +54,38 @@ HISTORY_TURNS = 6
 
 
 class AiUnavailable(RuntimeError):
-    """The model could not be reached, or took too long.
+    """The model could not be reached.
 
-    Carries a sentence meant for the student, not a stack trace: routers turn
-    this into a 502 and the chat stream into an `error` event.
+    Carries a sentence meant for the student, not a stack trace, and the
+    status code that fits: routers raise it as an HTTPException and the chat
+    stream sends it as an `error` event.
     """
 
-    def __init__(self, detail: str = "The model could not be reached. Is Ollama running with the chat model pulled?") -> None:
-        super().__init__(detail)
-        self.detail = detail
+    status_code = 502
+    default_detail = "The model could not be reached. Is Ollama running with the chat model pulled?"
+
+    def __init__(self, detail: str | None = None) -> None:
+        self.detail = detail or self.default_detail
+        super().__init__(self.detail)
+
+
+class AiTimeout(AiUnavailable):
+    """The model accepted the request and then took too long.
+
+    A different failure from "not running", and a different thing to tell the
+    student: the fix is a smaller request or a faster model, not starting
+    Ollama. 504 rather than 502 for the same reason — the gateway was reached.
+    """
+
+    status_code = 504
+    default_detail = "The model took too long to answer. Try a shorter topic, or a faster model."
+
+    @classmethod
+    def after(cls, seconds: float, model: str) -> "AiTimeout":
+        return cls(
+            f"The model ({model}) took longer than {seconds:.0f} seconds to answer. "
+            f"Try a shorter topic, fewer items, or a faster model such as llama3.2:3b."
+        )
 
 
 # ---- prompts -----------------------------------------------------------------
@@ -109,6 +142,24 @@ Respond with JSON only, in exactly this shape:
 {{"questions": [{{"question": "What does a process own that a thread does not?", "choices": ["An address space", "A program counter", "A stack", "A set of registers"], "answer": "An address space", "explanation": "Threads share the address space of their process [1].", "source_index": 1}}]}}
 
 Now write {count} questions about the passages above."""
+
+CHECKLIST_TASK = """Write a revision checklist for "{topic}": {items} steps a student should work through to be sure they know this material.
+
+Rules:
+- Every step is an action the student performs: recall something without looking, explain it out loud, work through an example, compare two things, sketch a process.
+- Order them from remembering the facts to using them. Definitions first, applications last.
+- Only cover what the passages contain. Do not invent topics they do not mention.
+- "why" says what that particular step proves. Every step has a different why — do not repeat one, and do not copy the example.
+- "source_index" is the number of the passage the step came from.
+
+Respond with JSON only, in exactly this shape:
+{{"items": [
+  {{"step": "Recall the three parts of a process control block without looking", "why": "the definition has to be automatic before anything builds on it", "source_index": 1}},
+  {{"step": "Explain out loud why a context switch costs more than a function call", "why": "shows you understand the mechanism, not just the label", "source_index": 2}},
+  {{"step": "Work out how long ten threads wait under a 20ms quantum", "why": "applying the formula is where a half-learned rule falls apart", "source_index": 2}}
+]}}
+
+Now write {items} steps for "{topic}", each with its own why."""
 
 FLASHCARDS_SYSTEM = """You write flashcards for a student from a passage of their own notes.
 
@@ -220,6 +271,29 @@ class AiService:
                 cards.append(FlashcardDraft(front=front[:2000], back=back[:4000]))
         return cards[:count]
 
+    # ---- 5. revision checklist -----------------------------------------------
+
+    async def generate_revision_checklist(
+        self, topic: str, sources: Sequence[Source], *, items: int = 6
+    ) -> ChecklistOut:
+        """An ordered list of things to do to be sure you know a topic.
+
+        Not a summary of the material: a list of actions performed against it,
+        ordered from recalling definitions to applying them. This is the one
+        the MCP tool exposes, so its output has to be structured enough for
+        another program to render.
+        """
+        if not sources:
+            return ChecklistOut(topic=topic, items=[])
+
+        raw = await self._ask(
+            self._answer_system(sources),
+            CHECKLIST_TASK.format(topic=topic, items=items),
+            json_mode=True,
+        )
+        parsed = [step for item in _items(_load_json(raw), "items") if (step := _as_step(item, len(sources)))]
+        return ChecklistOut(topic=topic, items=parsed[:items])
+
     # ---- the streaming variant, for /chat -------------------------------------
 
     async def stream_answer(
@@ -235,7 +309,9 @@ class AiService:
         try:
             async for delta in self._model.stream(self._answer_system(sources), messages):
                 yield delta
-        except (httpx.HTTPError, httpx.TimeoutException, RuntimeError, OSError) as exc:
+        except httpx.TimeoutException as exc:
+            raise self._timeout() from exc
+        except (httpx.HTTPError, RuntimeError, OSError) as exc:
             raise AiUnavailable() from exc
 
     # ---- shared --------------------------------------------------------------
@@ -244,10 +320,29 @@ class AiService:
         return ANSWER_SYSTEM.format(refusal=REFUSAL, passages=render_passages(sources))
 
     async def _ask(self, system: str, user: str, *, json_mode: bool = False) -> str:
+        """One model call, with both failure modes named.
+
+        `asyncio.wait_for` is the outer bound. The HTTP client has its own
+        read timeout, but a provider that dribbles one byte a minute keeps
+        resetting it — the request would never finish and never fail. This
+        caps the whole call regardless of how the bytes arrive.
+        """
+        limit = getattr(self._model, "timeout", 0.0) or None
         try:
-            return (await self._model.complete(system, [{"role": "user", "content": user}], json_mode=json_mode)).strip()
-        except (httpx.HTTPError, httpx.TimeoutException, RuntimeError, OSError) as exc:
+            reply = await asyncio.wait_for(
+                self._model.complete(system, [{"role": "user", "content": user}], json_mode=json_mode),
+                timeout=limit,
+            )
+        except (TimeoutError, asyncio.TimeoutError, httpx.TimeoutException) as exc:
+            raise self._timeout() from exc
+        except (httpx.HTTPError, RuntimeError, OSError) as exc:
             raise AiUnavailable() from exc
+        return reply.strip()
+
+    def _timeout(self) -> AiTimeout:
+        seconds = getattr(self._model, "timeout", 0.0)
+        model = getattr(self._model, "model", "the model")
+        return AiTimeout.after(seconds, model) if seconds else AiTimeout()
 
     @staticmethod
     def _is_grounded(text: str) -> bool:
@@ -333,6 +428,32 @@ def _as_question(item: object, source_count: int) -> QuizQuestion | None:
         choices=[c[:500] for c in choices[:6]],
         answer_index=answer_index,
         explanation=str(item.get("explanation", "")).strip()[:1000],
+        source_index=source if 1 <= source <= source_count else None,
+    )
+
+
+def _as_step(item: object, source_count: int) -> ChecklistItem | None:
+    """One checklist step, or None when there is no action in it.
+
+    A step with no text is useless; one with a source number that does not
+    exist keeps its text and loses the number, because the step is still
+    worth doing even when the model mislabelled where it came from.
+    """
+    if isinstance(item, str):
+        return ChecklistItem(step=item.strip()[:400]) if item.strip() else None
+    if not isinstance(item, dict):
+        return None
+
+    step = str(item.get("step", "")).strip()
+    if not step:
+        return None
+    try:
+        source = int(item.get("source_index"))
+    except (TypeError, ValueError):
+        source = 0
+    return ChecklistItem(
+        step=step[:400],
+        why=str(item.get("why", "")).strip()[:300],
         source_index=source if 1 <= source <= source_count else None,
     )
 

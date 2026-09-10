@@ -32,6 +32,24 @@ jobs:
           SESSION_SECRET: ci-only-secret-that-is-long-enough-to-pass-validation
         run: .venv/bin/python -m pytest -q
 
+  mcp:
+    name: mcp · pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: mcp-server/requirements.txt
+      - run: uv venv --python 3.12 .venv
+      - run: uv pip install --python .venv/bin/python -r requirements.txt
+      # The Recall API is faked with an httpx MockTransport, so this needs
+      # neither a running API nor a model.
+      - run: .venv/bin/python -m pytest -q
+
   web:
     name: web · typecheck, lint, tokens, build
     runs-on: ubuntu-latest

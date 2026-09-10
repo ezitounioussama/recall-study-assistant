@@ -48,9 +48,11 @@ with their endpoints and status, and the plan against the lab's seven phases.
 | `api/tests/` | 93 tests, no model needed |
 | `web/` | the Next.js client |
 | `docs/` | plan, roadmap, workflow tour with screenshots, design specification |
+| `automation/` | the n8n daily review reminder, with its own compose stack |
+| `mcp-server/` | an MCP server exposing the checklist and search tools |
 | `requirements.txt` · `.env.example` | root index files; the real ones sit in `api/` and `web/` |
 
-Lab phase write-ups: [phase 1 — product plan](docs/product-plan.md) · [phase 2 — backend foundation](docs/phase-2-backend-foundation.md) · [phase 3 — LLM integration](docs/phase-3-llm-integration.md) · [phase 4 — database and auth](docs/phase-4-database-and-auth.md) · [phase 5 — study features](docs/phase-5-study-features.md)
+Lab phase write-ups: [phase 1 — product plan](docs/product-plan.md) · [phase 2 — backend foundation](docs/phase-2-backend-foundation.md) · [phase 3 — LLM integration](docs/phase-3-llm-integration.md) · [phase 4 — database and auth](docs/phase-4-database-and-auth.md) · [phase 5 — study features](docs/phase-5-study-features.md) · [phase 6 — async, automation, MCP](docs/phase-6-async-automation-mcp.md)
 
 ## See it work
 

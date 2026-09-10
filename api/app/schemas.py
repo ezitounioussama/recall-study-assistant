@@ -238,6 +238,19 @@ class FlashcardDraft(BaseModel):
     back: str
 
 
+class ChecklistItem(BaseModel):
+    """One thing to do, and what it proves."""
+
+    step: str = Field(description="An action: recall, explain, work through, compare")
+    why: str = Field(default="", description="What this step tests")
+    source_index: int | None = Field(default=None, description="The passage it came from")
+
+
+class ChecklistOut(BaseModel):
+    topic: str
+    items: list[ChecklistItem] = Field(default_factory=list)
+
+
 # ---- study history ---------------------------------------------------------------
 
 
@@ -309,6 +322,10 @@ class FlashcardsRequest(StudyRequest):
     count: int = Field(default=5, ge=1, le=20, description="Cards to write, spread across the passages found")
 
 
+class ChecklistRequest(StudyRequest):
+    items: int = Field(default=6, ge=1, le=12, description="Steps to produce; fewer if the material is thin")
+
+
 class StudyResponse(BaseModel):
     """What every study endpoint returns around its payload.
 
@@ -338,3 +355,7 @@ class QuizResponse(StudyResponse):
 
 class FlashcardsResponse(StudyResponse):
     cards: list[CardOut] = Field(description="Saved and due now, so they appear in the next review session")
+
+
+class ChecklistResponse(StudyResponse):
+    checklist: ChecklistOut

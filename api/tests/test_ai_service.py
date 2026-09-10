@@ -7,6 +7,7 @@ test, the model's fluency is not.
 
 from __future__ import annotations
 
+import asyncio
 import json
 
 import httpx
@@ -15,7 +16,7 @@ import pytest
 from app.config import Settings
 from app.llm import OllamaChat, ScriptedChat
 from app.schemas import Source
-from app.services.ai_service import REFUSAL, AiService, AiUnavailable, render_passages
+from app.services.ai_service import REFUSAL, AiService, AiTimeout, AiUnavailable, render_passages
 
 
 def source(index: int, text: str, *, title: str = "Operating systems", position: int = 0) -> Source:
@@ -52,6 +53,35 @@ class QueuedChat:
         self.calls.append((system, messages))
         for word in (self.replies.pop(0) if self.replies else "").split(" "):
             yield word + " "
+
+
+class SlowChat:
+    """Accepts the request and then never answers, the way a wedged model does."""
+
+    model = "slow-model"
+    timeout = 0.05
+
+    async def complete(self, system, messages, *, json_mode: bool = False) -> str:
+        await asyncio.sleep(5)
+        return "too late"
+
+    async def stream(self, system, messages):
+        await asyncio.sleep(5)
+        yield "too late"
+
+
+class TimingOutChat:
+    """The HTTP client gives up: what httpx raises when a read exceeds its budget."""
+
+    model = "llama3.2:3b"
+    timeout = 120.0
+
+    async def complete(self, system, messages, *, json_mode: bool = False) -> str:
+        raise httpx.ReadTimeout("timed out")
+
+    async def stream(self, system, messages):
+        raise httpx.ReadTimeout("timed out")
+        yield  # pragma: no cover
 
 
 class BrokenChat:
@@ -299,6 +329,82 @@ class TestModelFailure:
 
 
 # ---- the streaming variant ------------------------------------------------------
+
+
+class TestTimeouts:
+    """A model that is slow and a model that is absent are different problems."""
+
+    async def test_a_read_timeout_says_so_and_names_the_budget(self):
+        with pytest.raises(AiTimeout) as raised:
+            await AiService(TimingOutChat()).explain("threads", PASSAGES)
+
+        assert "took longer than 120 seconds" in raised.value.detail
+        assert "llama3.2:3b" in raised.value.detail
+        assert raised.value.status_code == 504
+
+    async def test_a_model_that_simply_never_answers_is_cut_off(self):
+        """The HTTP read timeout can be reset forever by a dribbling provider;
+        the service caps the whole call regardless."""
+        with pytest.raises(AiTimeout):
+            await asyncio.wait_for(AiService(SlowChat()).summarise(PASSAGES), timeout=2)
+
+    async def test_a_timeout_is_still_an_ai_unavailable(self):
+        """So a caller that only cares that it failed needs one except clause."""
+        assert issubclass(AiTimeout, AiUnavailable)
+
+    async def test_an_absent_model_is_502_not_504(self):
+        with pytest.raises(AiUnavailable) as raised:
+            await AiService(BrokenChat()).explain("threads", PASSAGES)
+        assert raised.value.status_code == 502
+        assert "could not be reached" in raised.value.detail
+
+    async def test_the_streamed_answer_times_out_the_same_way(self):
+        with pytest.raises(AiTimeout):
+            async for _ in AiService(TimingOutChat()).stream_answer("x", PASSAGES):
+                pass
+
+    @pytest.mark.parametrize("method", ["explain", "summarise", "generate_quiz", "generate_revision_checklist"])
+    async def test_every_method_reports_a_timeout(self, method):
+        service = AiService(TimingOutChat())
+        call = getattr(service, method)
+        with pytest.raises(AiTimeout):
+            await (call("threads", PASSAGES) if method in ("explain", "generate_revision_checklist") else call(PASSAGES))
+
+
+class TestChecklist:
+    async def test_returns_ordered_steps_with_their_reasons(self):
+        reply = json.dumps({"items": [
+            {"step": "Recall what a process owns", "why": "definitions first", "source_index": 1},
+            {"step": "Explain why threads are cheaper", "why": "tests understanding", "source_index": 2},
+        ]})
+        result = await AiService(QueuedChat(reply)).generate_revision_checklist("processes", PASSAGES, items=5)
+
+        assert result.topic == "processes"
+        assert [i.step for i in result.items] == ["Recall what a process owns", "Explain why threads are cheaper"]
+        assert result.items[0].source_index == 1
+
+    async def test_a_bare_string_step_is_accepted(self):
+        """Small models drop the object wrapper; the step is still usable."""
+        result = await AiService(QueuedChat(json.dumps({"items": ["Recall the PCB fields", "  "]}))).generate_revision_checklist(
+            "processes", PASSAGES
+        )
+        assert [i.step for i in result.items] == ["Recall the PCB fields"]
+
+    async def test_a_source_number_that_does_not_exist_is_dropped_but_the_step_kept(self):
+        reply = json.dumps({"items": [{"step": "Recall the PCB fields", "source_index": 9}]})
+        result = await AiService(QueuedChat(reply)).generate_revision_checklist("processes", PASSAGES)
+        assert result.items[0].source_index is None
+        assert result.items[0].step == "Recall the PCB fields"
+
+    async def test_never_more_steps_than_asked(self):
+        reply = json.dumps({"items": [{"step": f"Step {i}"} for i in range(20)]})
+        result = await AiService(QueuedChat(reply)).generate_revision_checklist("processes", PASSAGES, items=3)
+        assert len(result.items) == 3
+
+    async def test_no_passages_means_no_model_call(self):
+        model = QueuedChat("unused")
+        result = await AiService(model).generate_revision_checklist("cricket", [])
+        assert result.items == [] and model.calls == []
 
 
 class TestStreamAnswer:

@@ -25,6 +25,8 @@ from app.retrieval import find_sources
 from app.routers.auth import current_user
 from app.routers.cards import card_out
 from app.schemas import (
+    ChecklistRequest,
+    ChecklistResponse,
     ExplainRequest,
     ExplainResponse,
     FlashcardsRequest,
@@ -94,7 +96,8 @@ async def _save(
 
 
 def _unavailable(exc: AiUnavailable) -> HTTPException:
-    return HTTPException(status.HTTP_502_BAD_GATEWAY, exc.detail)
+    """502 when the model is not there, 504 when it was too slow."""
+    return HTTPException(exc.status_code, exc.detail)
 
 
 def _nothing_found() -> HTTPException:
@@ -333,6 +336,60 @@ async def flashcards(
     )
 
 
+# ---- 5. revision checklist -----------------------------------------------------
+
+
+@router.post("/checklist", response_model=ChecklistResponse, summary="A revision checklist for a topic")
+async def checklist(
+    body: ChecklistRequest,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_session),
+    embedder: Embedder = Depends(get_embedder),
+    ai: AiService = Depends(get_ai_service),
+) -> ChecklistResponse:
+    """Ordered steps to work through, from recalling definitions to applying them.
+
+    The same tool the MCP server exposes to other assistants, reachable over
+    HTTP for anything that speaks it.
+    """
+    sources = await _passages(body, user, db, embedder)
+    if not sources:
+        raise _nothing_found()
+
+    try:
+        generated = await ai.generate_revision_checklist(body.topic, sources, items=body.items)
+    except AiUnavailable as exc:
+        raise _unavailable(exc) from exc
+
+    if not generated.items:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "The model did not return a usable step. Try again, or a narrower topic.",
+        )
+
+    session = await _save(
+        db,
+        user=user,
+        kind="checklist",
+        topic=body.topic,
+        sources=sources,
+        artefact=Artefact(
+            kind="checklist",
+            text="\n".join(f"{i}. {item.step}" for i, item in enumerate(generated.items, 1)),
+            data=generated.model_dump(mode="json"),
+        ),
+    )
+    return ChecklistResponse(
+        session_id=session.id,
+        kind="checklist",
+        topic=body.topic,
+        model=settings().chat_model,
+        created_at=_aware(session.created_at),
+        sources=sources,
+        checklist=generated,
+    )
+
+
 def _aware(value: dt.datetime) -> dt.datetime:
     """SQLite hands back naive datetimes; the API promises timezone-aware ones."""
     return value if value.tzinfo else value.replace(tzinfo=dt.timezone.utc)
@@ -344,7 +401,7 @@ def _aware(value: dt.datetime) -> dt.datetime:
 @router.get("/history", response_model=list[StudySessionOut], summary="Everything you have generated")
 async def history(
     limit: int = Query(default=50, ge=1, le=200),
-    kind: str | None = Query(default=None, pattern="^(chat|explain|summarise|quiz|flashcards)$"),
+    kind: str | None = Query(default=None, pattern="^(chat|explain|summarise|quiz|flashcards|checklist)$"),
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_session),
 ) -> list[StudySessionOut]:

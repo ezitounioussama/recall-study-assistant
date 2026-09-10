@@ -69,8 +69,14 @@ class Settings(BaseSettings):
 
     # Seconds to wait for a model. Generous, because a CPU writing fifteen
     # flashcards is slow, but bounded so a hung provider cannot hold a request
-    # open forever.
+    # open forever. Measured on llama3.2:3b: an explanation takes ~10s, a
+    # summary ~20s, a quiz ~50s. The ceiling is for the worst case, not the
+    # common one.
     llm_timeout_seconds: float = 300.0
+
+    # A provider that is not listening should fail in seconds, not minutes:
+    # nothing is being computed, so waiting cannot help.
+    llm_connect_timeout_seconds: float = 5.0
 
     # Passages scoring under this are not shown to the model, and a question
     # that retrieves none gets the fixed refusal. Calibrated on nomic-embed-text
