@@ -6,6 +6,8 @@ real memory model. Everything runs on your machine.
 
 ![the landing page](docs/screens/landing.png)
 
+**Demo video (78 s):** [watch on Google Drive](https://drive.google.com/file/d/1yR8oJcfzUmNv7cekgDR7QLlFaiz7n-9u/view?usp=sharing)
+
 Reading a page four times feels like learning and is mostly recognition. What
 produces recall is being asked, and being asked again just before you would
 forget — and an answer you cannot check against the syllabus is worse than no
@@ -16,6 +18,7 @@ questions, review what it turns into cards.
 
 ```bash
 ollama pull nomic-embed-text && ollama pull llama3.2:3b   # once
+ollama pull qwen3:8b      # the grader: Explain it back and quiz key checks
 ollama serve
 
 cd api                                         # terminal 1 — the API on :8100
