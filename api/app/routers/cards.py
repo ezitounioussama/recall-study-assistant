@@ -17,6 +17,7 @@ from app.config import settings
 from app.db import get_session
 from app.fsrs import Memory, Rating, Scheduler, State
 from app.services.ai_service import AiService, AiUnavailable, get_ai_service
+from app.services import weak_spots
 from app.services.study_history import Artefact, Recording, record
 from app.models import Card, Chunk, Document, ReviewLog, User
 from app.routers.auth import current_user
@@ -28,6 +29,8 @@ from app.schemas import (
     GenerateCards,
     GradeRequest,
     GradeResponse,
+    WeakSpotCard,
+    WeakSpotOut,
     ReviewLogOut,
     ReviewRequest,
     ReviewResult,
@@ -71,6 +74,11 @@ def _apply(card: Card, memory: Memory) -> None:
     card.last_review = memory.last_review
 
 
+def recall_now(card: Card, now: dt.datetime) -> float:
+    """FSRS's chance this card is remembered at `now`."""
+    return scheduler.retrievability(_memory(card), now)
+
+
 def card_out(card: Card, now: dt.datetime) -> CardOut:
     return CardOut(
         id=card.id,
@@ -87,7 +95,7 @@ def card_out(card: Card, now: dt.datetime) -> CardOut:
         reps=card.reps,
         lapses=card.lapses,
         created_at=_aware(card.created_at),  # type: ignore[arg-type]
-        retrievability=round(scheduler.retrievability(_memory(card), now), 4),
+        retrievability=round(recall_now(card, now), 4),
     )
 
 
@@ -338,6 +346,37 @@ async def stats(
         next_due=min(upcoming) if upcoming else None,  # type: ignore[type-var]
         mean_retrievability=mean_r,
     )
+
+
+@router.get("/weak-spots", response_model=list[WeakSpotOut], summary="The passages you keep forgetting")
+async def weak_spots_route(
+    limit: int = Query(default=3, ge=1, le=10),
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_session),
+) -> list[WeakSpotOut]:
+    """Passages ranked by how often their cards were forgotten and how far recall has faded.
+
+    Only passages with review history appear: one never reviewed is untested,
+    not weak.
+    """
+    now = _now()
+    spots = await weak_spots.find(db, user_id=user.id, recall=lambda c: recall_now(c, now), limit=limit)
+    return [
+        WeakSpotOut(
+            chunk_id=spot.chunk.id if spot.chunk else None,
+            document_id=spot.chunk.document_id if spot.chunk else spot.cards[0].document_id,
+            document_title=spot.document_title,
+            position=spot.chunk.position if spot.chunk else None,
+            excerpt=weak_spots.excerpt(spot.chunk.text) if spot.chunk else None,
+            reason=weak_spots.reason(spot.evidence),
+            weakness=weak_spots.weakness(spot.evidence),
+            reviews=spot.evidence.reviews,
+            forgotten=spot.evidence.forgotten,
+            recall_now=round(spot.evidence.recall_now, 3),
+            cards=[WeakSpotCard(id=c.id, front=c.front) for c in spot.cards],
+        )
+        for spot in spots
+    ]
 
 
 @router.get("/{card_id}", response_model=CardOut)

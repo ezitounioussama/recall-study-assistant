@@ -398,3 +398,32 @@ class FlashcardsResponse(StudyResponse):
 
 class ChecklistResponse(StudyResponse):
     checklist: ChecklistOut
+
+
+# ---- weak spots -------------------------------------------------------------------
+
+
+class WeakSpotCard(BaseModel):
+    id: str
+    front: str
+
+
+class WeakSpotOut(BaseModel):
+    """One passage this student keeps forgetting, and why it was picked."""
+
+    chunk_id: str | None
+    document_id: str | None
+    document_title: str | None
+    position: int | None
+    excerpt: str | None = Field(description="The start of the passage, so the student sees what to reread")
+    reason: str
+    weakness: float = Field(ge=0, le=1)
+    reviews: int
+    forgotten: int
+    recall_now: float
+    cards: list[WeakSpotCard]
+
+
+class WeakSpotQuizRequest(BaseModel):
+    count: int = Field(default=5, ge=1, le=10)
+    spots: int = Field(default=3, ge=1, le=5, description="How many weak passages to draw the questions from")

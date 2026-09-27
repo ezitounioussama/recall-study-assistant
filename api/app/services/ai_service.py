@@ -162,6 +162,9 @@ Respond with JSON only, in exactly this shape:
 
 Now write {items} steps for "{topic}", each with its own why."""
 
+KEY_CHECK_SYSTEM = """You check quiz questions against a passage. Read the passage, then the question and its numbered choices. Pick the one choice the passage shows to be correct. If no choice is correct, or more than one is, answer 0.
+Reply with JSON only: {"answer": <number>}"""
+
 STATED_SYSTEM = """Question: {question}
 Fact: {point}
 
@@ -267,6 +270,41 @@ class AiService:
             difficulty=difficulty,
             questions=questions[:count],
         )
+
+    async def check_answer_keys(self, quiz: QuizOut, sources: Sequence[Source]) -> QuizOut:
+        """Keep only the questions a second, independent reading agrees with.
+
+        The model that writes a quiz also marks its answer, and `llama3.2:3b`
+        marks it wrong often enough to matter: on the demo notes it wrote
+        "A process has a lower creation cost" as correct next to an
+        explanation saying the opposite. Each question is answered again by
+        the grader model from the passage alone, without seeing the key, and a
+        question where the two disagree is dropped. A missing question costs
+        the student nothing; a wrong key marks them wrong for being right.
+        """
+        by_index = {s.index: s for s in sources}
+        everything = "\n\n".join(s.text for s in sources)
+
+        async def agrees(q: QuizQuestion) -> bool:
+            source = by_index.get(q.source_index) if q.source_index else None
+            numbered = "\n".join(f"{i + 1}. {choice}" for i, choice in enumerate(q.choices))
+            raw = await self._ask(
+                KEY_CHECK_SYSTEM,
+                f"Passage:\n{source.text if source else everything}\n\nQuestion: {q.question}\n{numbered}",
+                json_mode=True,
+                model=self._grader,
+            )
+            try:
+                return int(_load_json(raw).get("answer", 0)) == q.answer_index + 1
+            except (TypeError, ValueError):
+                return False
+
+        # Two choices that say the same thing ("an order of magnitude", "one
+        # order of magnitude") make any key wrong for someone. The checker
+        # model misses these, so they are caught in code first.
+        distinct = [q for q in quiz.questions if _distinct_choices(q.choices)]
+        verdicts = await asyncio.gather(*(agrees(q) for q in distinct))
+        return quiz.model_copy(update={"questions": [q for q, ok in zip(distinct, verdicts) if ok]})
 
     # ---- 4. flashcards -------------------------------------------------------
 
@@ -523,6 +561,21 @@ def _items(data: dict, key: str) -> list:
     """The list under `key`, or a bare list the model returned instead."""
     value = data.get(key, data.get("_list", []))
     return value if isinstance(value, list) else []
+
+
+_SAME_WORD = {"a": "one", "an": "one", "1": "one", "the": ""}
+
+
+def _distinct_choices(choices: Sequence[str]) -> bool:
+    """False when two choices read the same once articles and case are ignored."""
+    seen = set()
+    for choice in choices:
+        words = re.findall(r"[a-z0-9]+", choice.lower())
+        key = " ".join(w for w in (_SAME_WORD.get(w, w) for w in words) if w)
+        if key in seen:
+            return False
+        seen.add(key)
+    return True
 
 
 def _as_question(item: object, source_count: int) -> QuizQuestion | None:
