@@ -2,4 +2,4 @@
 
 # One place for the version. main.py hands it to FastAPI and /, /health report it,
 # so the three can never disagree.
-__version__ = "1.0.0"
+__version__ = "1.0.1"

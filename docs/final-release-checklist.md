@@ -6,7 +6,7 @@ command that backs it, so a reviewer can verify rather than trust.
 ## Does it work
 
 - [x] **The API starts clean.** `uvicorn app.main:app --port 8100`, then
-      `GET /health` → `{"status":"ok","service":"recall-api","version":"1.0.0",…}`.
+      `GET /health` → `{"status":"ok","service":"recall-api","version":"1.0.1",…}`.
 - [x] **The web app builds.** `pnpm build` — 6 routes, TypeScript strict, no errors.
 - [x] **The whole journey runs against real models.** Register → upload →
       cited answer → generated cards → FSRS review → history. Walked with
