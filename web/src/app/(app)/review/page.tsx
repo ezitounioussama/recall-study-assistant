@@ -10,6 +10,10 @@
  * answer in their own words and have it checked fact by fact against the
  * card. The check suggests a rating; the student still presses it.
  *
+ * Weak spots sit under the card: the passages the history says are slipping,
+ * and a quiz on them. They reload when a session ends, so what was just
+ * forgotten shows up straight away.
+ *
  * Keys: Space shows the answer; Ctrl+Enter checks a written answer; 1–4 rate.
  */
 import Link from "next/link";
@@ -25,6 +29,7 @@ import { ExpandCapsule } from "@/components/ui/product";
 import { api, ApiError, type CardStats, type DueCard, type Grade, type Rating } from "@/lib/api";
 import { formatDue, formatInterval } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { WeakSpots } from "./weak-spots";
 
 const RATINGS: { rating: Rating; label: string; key: keyof DueCard["preview"]; style: string }[] = [
   { rating: 1, label: "Again", key: "again", style: "bg-ink text-on-dark" },
@@ -328,6 +333,8 @@ export default function ReviewPage() {
           </motion.section>
         ) : null}
       </AnimatePresence>
+
+      <WeakSpots key={finished ? "after" : "before"} />
     </div>
   );
 }
@@ -343,7 +350,6 @@ function Stat({ label, value, suffix = "" }: { label: string; value: number | nu
     </div>
   );
 }
-
 
 const VERDICT: Record<Grade["verdict"], { label: string; style: string }> = {
   correct: { label: "You had it", style: "bg-primary text-on-primary" },

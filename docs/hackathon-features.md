@@ -98,3 +98,50 @@ are the known limits — a paraphrase with no word in common ("ten times" for
 stack"). They were left unfixed so the held-out number stays honest.
 
 5 tests on the report's own arithmetic in `api/tests/test_evaluation_metrics.py`.
+
+## 3. Weak spots
+
+A review app knows exactly what you keep forgetting, and most never tell you.
+Under the card on the review screen, Recall now lists the **passages** your
+history says are slipping, then writes a quiz on only those passages.
+
+![weak spots](screens/hackathon/weak-spots.png)
+
+**A weak spot is a passage, not a card.** Three cards written from the same
+paragraph are one gap, and the fix is to reread that paragraph. So cards are
+grouped by the passage they came from, and each group is scored from its own
+review history:
+
+- **half** is how often its cards were rated Again, the most direct evidence
+  there is;
+- **three tenths** is FSRS's current chance of recalling them;
+- **two tenths** is how difficult FSRS has found them for this student.
+
+A passage appears only if it has been reviewed and was either forgotten or
+has faded below 85% recall. One never reviewed is untested, not weak, and the
+panel stays hidden rather than guess. The ranking is a pure function, so its
+rules are tested directly.
+
+**The quiz checks its own answer key.** The first live run marked "A process
+has a lower creation cost" as correct, right next to an explanation saying
+the opposite. A wrong key is the worst failure a quiz can have, because it
+marks you wrong for being right. So after `llama3.2:3b` writes the questions,
+each one is answered again by `qwen3:8b` from the passage alone, without
+seeing the key, and any question where the two disagree is dropped. That
+check caught both bad keys in a probe while accepting the good one. A second
+check, done in code, drops questions whose choices say the same thing ("an
+order of magnitude" and "one order of magnitude"), which the model missed.
+Asked for three questions, it usually keeps two.
+
+![a weak-spot quiz](screens/hackathon/weak-spots-quiz.png)
+
+Known limits:
+
+- On a 15 GB CPU-only machine Ollama cannot keep both models loaded, so it
+  swaps them on every step. A three-question quiz takes 50 to 80 seconds, and
+  the screen says so while it works.
+- The check verifies the key, not the explanation. An explanation can still
+  wander off the question while the marked answer is right.
+
+`GET /cards/weak-spots` · `POST /study/weak-spots/quiz` (saved to history as a
+quiz) · 29 tests in `api/tests/test_weak_spots.py`.

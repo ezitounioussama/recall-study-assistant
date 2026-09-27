@@ -82,6 +82,32 @@ export type Grade = {
   suggested_rating: 1 | 2 | 3;
 };
 export type GradeResult = { card_id: string; grade: Grade; expected: string; source_text: string | null; session_id: string };
+export type WeakSpot = {
+  chunk_id: string | null;
+  document_id: string | null;
+  document_title: string | null;
+  position: number | null;
+  excerpt: string | null;
+  reason: string;
+  weakness: number;
+  reviews: number;
+  forgotten: number;
+  recall_now: number;
+  cards: { id: string; front: string }[];
+};
+export type QuizQuestion = {
+  question: string;
+  choices: string[];
+  answer_index: number;
+  explanation: string;
+  source_index: number | null;
+};
+export type QuizResult = {
+  session_id: string;
+  topic: string;
+  sources: Source[];
+  quiz: { topic: string; difficulty: string; questions: QuizQuestion[] };
+};
 export type CardStats = {
   total: number;
   learning: number;
@@ -189,6 +215,10 @@ export const api = {
     },
   },
 
+  study: {
+    weakSpotQuiz: (count = 5) => request<QuizResult>("/study/weak-spots/quiz", json({ count })),
+  },
+
   cards: {
     list: (params?: { state?: CardState; document_id?: string }) => {
       const query = new URLSearchParams(params as Record<string, string>).toString();
@@ -201,6 +231,7 @@ export const api = {
     generate: (document_id: string, per_chunk = 3) => request<Card[]>("/cards/generate", json({ document_id, per_chunk })),
     review: (id: string, rating: Rating) => request<ReviewResult>(`/cards/${id}/review`, json({ rating })),
     grade: (id: string, answer: string) => request<GradeResult>(`/cards/${id}/grade`, json({ answer })),
+    weakSpots: (limit = 3) => request<WeakSpot[]>(`/cards/weak-spots?limit=${limit}`),
     delete: (id: string) => request<void>(`/cards/${id}`, { method: "DELETE" }),
   },
 };

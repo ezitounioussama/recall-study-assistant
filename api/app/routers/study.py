@@ -23,7 +23,7 @@ from app.embeddings import Embedder, get_embedder
 from app.models import Card, StudySession, User
 from app.retrieval import find_sources
 from app.routers.auth import current_user
-from app.routers.cards import card_out
+from app.routers.cards import card_out, recall_now
 from app.schemas import (
     ChecklistRequest,
     ChecklistResponse,
@@ -39,8 +39,9 @@ from app.schemas import (
     StudySessionOut,
     SummariseRequest,
     SummariseResponse,
+    WeakSpotQuizRequest,
 )
-from app.services import study_history
+from app.services import study_history, weak_spots
 from app.services.ai_service import AiService, AiUnavailable, get_ai_service
 from app.services.study_history import Artefact, Recording
 
@@ -387,6 +388,79 @@ async def checklist(
         created_at=_aware(session.created_at),
         sources=sources,
         checklist=generated,
+    )
+
+
+# ---- quiz me on my weak spots -------------------------------------------------------
+
+
+@router.post("/weak-spots/quiz", response_model=QuizResponse, summary="A quiz on the passages you keep forgetting")
+async def weak_spots_quiz(
+    body: WeakSpotQuizRequest,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_session),
+    ai: AiService = Depends(get_ai_service),
+) -> QuizResponse:
+    """Questions drawn only from the passages the review history says are weakest.
+
+    No retrieval step: the passages are chosen by evidence — what was
+    forgotten — not by similarity to a topic.
+    """
+    now = dt.datetime.now(dt.timezone.utc)
+    found = await weak_spots.find(db, user_id=user.id, recall=lambda c: recall_now(c, now), limit=body.spots)
+    # Only passages can be quizzed on; a hand-written card has no text behind it.
+    spots = [s for s in found if s.chunk is not None]
+    if not spots:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "No weak spots yet. Review some cards first: weak spots come from what you have forgotten.",
+        )
+
+    sources = [
+        Source(
+            index=i + 1,
+            chunk_id=s.chunk.id,
+            document_id=s.chunk.document_id,
+            document_title=s.document_title or "",
+            position=s.chunk.position,
+            text=s.chunk.text,
+            score=weak_spots.weakness(s.evidence),
+        )
+        for i, s in enumerate(spots)
+    ]
+    try:
+        generated = await ai.generate_quiz(sources, count=body.count, difficulty="beginner", topic="Your weak spots")
+        # A weak spot is where a wrong answer key does the most harm, so every
+        # key is checked by a second reading before the student sees it.
+        generated = await ai.check_answer_keys(generated, sources)
+    except AiUnavailable as exc:
+        raise _unavailable(exc) from exc
+    if not generated.questions:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "No question passed the answer check. Try again: each attempt writes new questions.",
+        )
+
+    session = await _save(
+        db,
+        user=user,
+        kind="quiz",
+        topic="Your weak spots",
+        sources=sources,
+        artefact=Artefact(
+            kind="quiz",
+            text=f"{len(generated.questions)} questions on your weakest passages",
+            data=generated.model_dump(mode="json"),
+        ),
+    )
+    return QuizResponse(
+        session_id=session.id,
+        kind="quiz",
+        topic="Your weak spots",
+        model=settings().chat_model,
+        created_at=_aware(session.created_at),
+        sources=sources,
+        quiz=generated,
     )
 
 
