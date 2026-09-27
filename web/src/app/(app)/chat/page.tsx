@@ -260,7 +260,11 @@ function Answer({ message, onCite }: { message: Message; onCite: (n: number) => 
           </span>
         ) : message.content ? (
           parts.map((part, i) =>
-            i % 2 === 1 ? (
+            // A number the model invented — [2] when one passage was supplied —
+            // is dropped rather than drawn as a chip that points at nothing.
+            // The server already leaves it out of `citations`; this keeps the
+            // text consistent with that while the answer is still streaming.
+            i % 2 === 1 && !(Number(part) >= 1 && Number(part) <= (message.sources?.length ?? 0)) ? null : i % 2 === 1 ? (
               <button
                 key={i}
                 type="button"
