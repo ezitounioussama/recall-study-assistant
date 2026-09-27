@@ -8,6 +8,7 @@
  */
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { LogoMark } from "@/components/ui/logo";
 
 const GLOBAL_LINKS = [
   { href: "/library", label: "Library" },
@@ -24,7 +25,8 @@ export function GlobalNav() {
       className="sticky top-0 z-50 flex h-11 items-center bg-surface-black text-on-dark"
     >
       <div className="mx-auto flex w-full max-w-[1440px] items-center gap-lg px-lg">
-        <Link href="/" className="text-nav-link font-semibold text-on-dark">
+        <Link href="/" className="inline-flex items-center gap-xs text-nav-link font-semibold text-on-dark">
+          <LogoMark size={20} />
           Recall
         </Link>
 

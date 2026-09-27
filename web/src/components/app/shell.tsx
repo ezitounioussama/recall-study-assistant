@@ -12,6 +12,7 @@ import { Dock, DockIcon } from "@/components/magicui/dock";
 import { AskIcon, LibraryIcon, ReviewIcon, SignOutIcon } from "@/components/app/icons";
 import { RequireAuth, useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { LogoMark } from "@/components/ui/logo";
 
 const PLACES = [
   { href: "/library", label: "Library", Icon: LibraryIcon },
@@ -28,7 +29,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     <RequireAuth>
       <header className="sticky top-0 z-50 h-11 bg-canvas/80 backdrop-blur-xl">
         <div className="mx-auto flex h-full w-full max-w-[1200px] items-center justify-between px-lg">
-          <Link href="/" className="text-nav-link font-semibold text-ink">
+          <Link href="/" className="inline-flex items-center gap-xs text-nav-link font-semibold text-ink">
+            <LogoMark size={20} />
             Recall
           </Link>
           <span className="text-caption text-lead-grey">{user?.display_name}</span>
