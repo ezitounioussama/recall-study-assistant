@@ -1,4 +1,7 @@
-# Recall
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/recall-logo-dark.png">
+  <img alt="Recall" src="docs/brand/recall-logo-light.png" height="72">
+</picture>
 
 An AI study assistant that answers **only from your own notes**, cites the
 exact passage behind every sentence, and schedules what you got wrong with a

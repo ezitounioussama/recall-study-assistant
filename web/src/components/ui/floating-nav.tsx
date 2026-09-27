@@ -12,6 +12,7 @@
  */
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { LogoMark } from "@/components/ui/logo";
 
 /**
  * The thin top bar. The product page's is white with ink text, not the
@@ -25,7 +26,8 @@ export function ProductTopBar({ children }: { children?: ReactNode }) {
       className="sticky top-0 z-50 flex h-11 items-center bg-canvas/80 backdrop-blur-xl"
     >
       <div className="mx-auto flex w-full max-w-[1024px] items-center justify-between px-lg">
-        <Link href="/" className="text-nav-link font-semibold text-ink">
+        <Link href="/" className="inline-flex items-center gap-xs text-nav-link font-semibold text-ink">
+          <LogoMark size={20} />
           Recall
         </Link>
         <div className="flex items-center gap-xl">{children}</div>
