@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     # switches off. Either is a settings change.
     chat_model: str = "llama3.2:3b"
 
+    # The model that judges free-text answers in "explain it back". Separate
+    # from chat_model because judging is where a small model fails: measured on
+    # eleven labelled answers, llama3.2:3b called every one of them
+    # contradictory, while qwen3:8b graded ten of eleven correctly at 2-3 s an
+    # answer once loaded. Empty means "use chat_model".
+    grader_model: str = "qwen3:8b"
+
     # Ollama needs no key. An OpenAI-compatible gateway in front of it does, and
     # so would a hosted provider — so the adapter sends `Authorization: Bearer`
     # whenever this is set. It is read from the environment and never written in

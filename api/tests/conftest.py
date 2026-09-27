@@ -16,6 +16,9 @@ os.environ["EMBEDDING_PROVIDER"] = "hash"  # no model download to run the suite
 # The hash embedder's cosine scores are far lower than nomic's; the product
 # threshold would refuse every question in the suite.
 os.environ["RETRIEVAL_MIN_SCORE"] = "0.05"
+# The grader would otherwise be a real Ollama model; empty means "reuse the
+# chat model", which the tests replace with a scripted one.
+os.environ["GRADER_MODEL"] = ""
 
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 

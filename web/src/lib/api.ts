@@ -72,6 +72,16 @@ export type ReviewLog = {
   reviewed_at: string;
 };
 export type ReviewResult = { card: Card; log: ReviewLog };
+export type Grade = {
+  verdict: "correct" | "partial" | "incorrect";
+  score: number;
+  correct: string[];
+  missing: string[];
+  incorrect: string[];
+  feedback: string;
+  suggested_rating: 1 | 2 | 3;
+};
+export type GradeResult = { card_id: string; grade: Grade; expected: string; source_text: string | null; session_id: string };
 export type CardStats = {
   total: number;
   learning: number;
@@ -190,6 +200,7 @@ export const api = {
       request<Card>("/cards", json({ front, back, document_id })),
     generate: (document_id: string, per_chunk = 3) => request<Card[]>("/cards/generate", json({ document_id, per_chunk })),
     review: (id: string, rating: Rating) => request<ReviewResult>(`/cards/${id}/review`, json({ rating })),
+    grade: (id: string, answer: string) => request<GradeResult>(`/cards/${id}/grade`, json({ answer })),
     delete: (id: string) => request<void>(`/cards/${id}`, { method: "DELETE" }),
   },
 };

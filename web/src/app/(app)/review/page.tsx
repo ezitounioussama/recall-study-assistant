@@ -6,7 +6,11 @@
  * scheduler on the server does the rest; this screen just has to make the
  * rating feel light.
  *
- * Keys: Space shows the answer; 1–4 rate it.
+ * "Explain it back": instead of flipping the card, the student can write the
+ * answer in their own words and have it checked fact by fact against the
+ * card. The check suggests a rating; the student still presses it.
+ *
+ * Keys: Space shows the answer; Ctrl+Enter checks a written answer; 1–4 rate.
  */
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,7 +22,7 @@ import { Confetti, type ConfettiRef } from "@/components/magicui/confetti";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { Button } from "@/components/ui/button";
 import { ExpandCapsule } from "@/components/ui/product";
-import { api, ApiError, type CardStats, type DueCard, type Rating } from "@/lib/api";
+import { api, ApiError, type CardStats, type DueCard, type Grade, type Rating } from "@/lib/api";
 import { formatDue, formatInterval } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +37,9 @@ export default function ReviewPage() {
   const [stats, setStats] = useState<CardStats | null>(null);
   const [queue, setQueue] = useState<DueCard[] | null>(null);
   const [revealed, setRevealed] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [grade, setGrade] = useState<Grade | null>(null);
+  const [grading, setGrading] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +87,8 @@ export default function ReviewPage() {
         setSession((s) => ({ ...s, reviewed: s.reviewed + 1, again: s.again + (rating === 1 ? 1 : 0) }));
         setRevealed(false);
         setShowSource(false);
+        setAnswer("");
+        setGrade(null);
         setError(null);
       } catch (e) {
         setError(e instanceof ApiError ? e.message : "Could not save that rating.");
@@ -89,6 +98,22 @@ export default function ReviewPage() {
     },
     [current, busy],
   );
+
+  const check = useCallback(async () => {
+    if (!current || grading || !answer.trim()) return;
+    setGrading(true);
+    setError(null);
+    try {
+      const result = await api.cards.grade(current.id, answer.trim());
+      setGrade(result.grade);
+      setRevealed(true);
+    } catch (e) {
+      // The check is optional: if it fails, the card still works the old way.
+      setError(e instanceof ApiError ? e.message : "The answer could not be checked. Show the answer and rate it yourself.");
+    } finally {
+      setGrading(false);
+    }
+  }, [current, grading, answer]);
 
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
@@ -206,31 +231,64 @@ export default function ReviewPage() {
                 ) : null}
               </AnimatePresence>
 
+              {grade ? <GradePanel grade={grade} answer={answer} /> : null}
+
               <footer className="mt-xxl">
                 {!revealed ? (
-                  <div className="flex flex-col items-center gap-xs">
-                    <Button variant="primary" onClick={() => setRevealed(true)}>
-                      Show answer
-                    </Button>
-                    <span className="text-caption text-ink-muted-48">or press Space</span>
+                  <div className="flex flex-col gap-md">
+                    <label className="flex flex-col gap-xs">
+                      <span className="text-caption-strong text-ink">Explain it back</span>
+                      <textarea
+                        value={answer}
+                        onChange={(e) => setAnswer(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                            e.preventDefault();
+                            void check();
+                          }
+                        }}
+                        rows={3}
+                        maxLength={2000}
+                        disabled={grading}
+                        placeholder="Answer in your own words, then check it against your notes."
+                        className="w-full resize-y rounded-lg border border-hairline bg-surface-pearl px-md py-sm font-[inherit] text-body text-ink outline-none placeholder:text-ink-muted-48 focus:border-primary"
+                      />
+                    </label>
+                    <div className="flex flex-wrap items-center justify-center gap-sm">
+                      <Button variant="primary" onClick={() => void check()} disabled={grading || !answer.trim()}>
+                        {grading ? "Checking…" : "Check my answer"}
+                      </Button>
+                      <Button variant="secondary" onClick={() => setRevealed(true)} disabled={grading}>
+                        Just show the answer
+                      </Button>
+                    </div>
+                    <span className="text-center text-caption text-ink-muted-48">Ctrl+Enter to check · Space to show when not typing</span>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-sm md:grid-cols-4">
-                    {RATINGS.map(({ rating, label, key, style }) => (
-                      <button
-                        key={rating}
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void rate(rating)}
-                        className={cn(
-                          "flex min-h-[64px] cursor-pointer flex-col items-center justify-center rounded-lg border-0 font-[inherit] disabled:cursor-not-allowed disabled:opacity-50",
-                          style,
-                        )}
-                      >
-                        <span className="text-body-strong">{label}</span>
-                        <span className="mt-xxs text-caption opacity-80">{formatInterval(current.preview[key])}</span>
-                      </button>
-                    ))}
+                    {RATINGS.map(({ rating, label, key, style }) => {
+                      const suggested = grade?.suggested_rating === rating;
+                      return (
+                        <button
+                          key={rating}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void rate(rating)}
+                          aria-label={suggested ? `${label} (suggested)` : label}
+                          className={cn(
+                            "relative flex min-h-[64px] cursor-pointer flex-col items-center justify-center rounded-lg border-0 font-[inherit] disabled:cursor-not-allowed disabled:opacity-50",
+                            style,
+                            suggested && "ring-2 ring-primary ring-offset-2 ring-offset-canvas",
+                          )}
+                        >
+                          {suggested ? (
+                            <span className="absolute -top-sm rounded-pill bg-primary px-xs text-[11px] font-semibold text-on-primary">suggested</span>
+                          ) : null}
+                          <span className="text-body-strong">{label}</span>
+                          <span className="mt-xxs text-caption opacity-80">{formatInterval(current.preview[key])}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </footer>
@@ -283,5 +341,56 @@ function Stat({ label, value, suffix = "" }: { label: string; value: number | nu
         {value === null ? "" : suffix}
       </dd>
     </div>
+  );
+}
+
+
+const VERDICT: Record<Grade["verdict"], { label: string; style: string }> = {
+  correct: { label: "You had it", style: "bg-primary text-on-primary" },
+  partial: { label: "Partly there", style: "bg-canvas-parchment text-ink" },
+  incorrect: { label: "Not yet", style: "bg-ink text-on-dark" },
+};
+
+function GradePanel({ grade, answer }: { grade: Grade; answer: string }) {
+  const verdict = VERDICT[grade.verdict];
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      aria-label="How your answer compares"
+      className="mt-lg rounded-lg border border-hairline bg-surface-pearl p-md"
+    >
+      <header className="flex flex-wrap items-center gap-sm">
+        <span className={cn("rounded-pill px-sm py-xxs text-caption-strong", verdict.style)}>{verdict.label}</span>
+        <span className="text-caption text-lead-grey">{Math.round(grade.score * 100)}% of the key points</span>
+      </header>
+      <p className="mt-sm text-caption text-ink-muted-48">
+        You wrote: <span className="text-ink-muted-80">“{answer}”</span>
+      </p>
+      <ul className="m-0 mt-sm flex list-none flex-col gap-xxs p-0 text-caption">
+        {grade.correct.map((point) => (
+          <li key={`c-${point}`} className="text-ink">
+            <span aria-hidden className="mr-xs text-primary">✓</span>
+            {point}
+          </li>
+        ))}
+        {grade.incorrect.map((point) => (
+          <li key={`i-${point}`} className="text-ink">
+            <span aria-hidden className="mr-xs">✕</span>
+            Your answer conflicts with: {point}
+          </li>
+        ))}
+        {grade.missing
+          .filter((point) => !grade.incorrect.includes(point))
+          .map((point) => (
+            <li key={`m-${point}`} className="text-lead-grey">
+              <span aria-hidden className="mr-xs">○</span>
+              Missing: {point}
+            </li>
+          ))}
+      </ul>
+      {grade.feedback ? <p className="mt-sm text-caption text-ink-muted-80">{grade.feedback}</p> : null}
+    </motion.section>
   );
 }

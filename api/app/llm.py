@@ -144,6 +144,20 @@ class ScriptedChat:  # noqa: D101 - documented below
             yield word if i == len(words) - 1 else f"{word} "
 
 
+def get_grader_model() -> ChatModel | None:
+    """The model that judges answers, or None to reuse the chat model."""
+    cfg = settings()
+    if not cfg.grader_model or cfg.grader_model == cfg.chat_model:
+        return None
+    return OllamaChat(
+        cfg.ollama_host,
+        cfg.grader_model,
+        api_key=cfg.llm_api_key,
+        timeout=cfg.llm_timeout_seconds,
+        connect_timeout=cfg.llm_connect_timeout_seconds,
+    )
+
+
 def get_chat_model() -> ChatModel:
     cfg = settings()
     return OllamaChat(
