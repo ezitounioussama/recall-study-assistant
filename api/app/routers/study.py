@@ -401,7 +401,7 @@ def _aware(value: dt.datetime) -> dt.datetime:
 @router.get("/history", response_model=list[StudySessionOut], summary="Everything you have generated")
 async def history(
     limit: int = Query(default=50, ge=1, le=200),
-    kind: str | None = Query(default=None, pattern="^(chat|explain|summarise|quiz|flashcards|checklist)$"),
+    kind: str | None = Query(default=None, pattern="^(chat|explain|summarise|quiz|flashcards|checklist|grade)$"),
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_session),
 ) -> list[StudySessionOut]:

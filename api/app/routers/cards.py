@@ -26,6 +26,8 @@ from app.schemas import (
     CardStats,
     DueCard,
     GenerateCards,
+    GradeRequest,
+    GradeResponse,
     ReviewLogOut,
     ReviewRequest,
     ReviewResult,
@@ -382,6 +384,57 @@ async def review_card(
     await db.refresh(card)
     await db.refresh(log)
     return ReviewResult(card=card_out(card, now), log=ReviewLogOut.model_validate(log))
+
+
+@router.post("/{card_id}/grade", response_model=GradeResponse, summary="Check an answer given in your own words")
+async def grade_card(
+    card_id: str,
+    body: GradeRequest,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_session),
+    ai: AiService = Depends(get_ai_service),
+) -> GradeResponse:
+    """Explain it back: compare a free-text answer with the card and its passage.
+
+    Suggests a rating but does not apply one. The student still presses the
+    button — the grade is advice, and the schedule stays their decision.
+    """
+    card = await _owned(card_id, user, db)
+    passage = None
+    if card.chunk_id:
+        passage = await db.scalar(select(Chunk.text).where(Chunk.id == card.chunk_id))
+
+    try:
+        grade = await ai.grade_answer(card.front, card.back, body.answer, passage=passage or "")
+    except AiUnavailable as exc:
+        raise HTTPException(exc.status_code, exc.detail) from exc
+    if grade is None:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "The answer could not be checked this time. Show the answer and rate it yourself.",
+        )
+
+    session = await record(
+        db,
+        Recording(
+            user_id=user.id,
+            kind="grade",
+            topic=card.front,
+            model=settings().chat_model,
+            document_id=card.document_id,
+            artefacts=[
+                Artefact(
+                    kind="grade",
+                    text=body.answer,
+                    data={"card_id": card.id, **grade.model_dump(mode="json")},
+                    grounded=passage is not None,
+                )
+            ],
+        ),
+    )
+    return GradeResponse(
+        card_id=card.id, grade=grade, expected=card.back, source_text=passage, session_id=session.id
+    )
 
 
 @router.delete("/{card_id}", status_code=status.HTTP_204_NO_CONTENT)

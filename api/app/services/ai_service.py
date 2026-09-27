@@ -31,9 +31,10 @@ from collections.abc import AsyncIterator, Sequence
 import httpx
 from fastapi import Depends
 
-from app.llm import ChatModel, Turn, get_chat_model
+from app.llm import ChatModel, Turn, get_chat_model, get_grader_model
 from app.schemas import (
     ChecklistItem,
+    Grade,
     ChecklistOut,
     Explanation,
     FlashcardDraft,
@@ -161,6 +162,17 @@ Respond with JSON only, in exactly this shape:
 
 Now write {items} steps for "{topic}", each with its own why."""
 
+STATED_SYSTEM = """Question: {question}
+Fact: {point}
+
+Does the student's answer say this fact? Different wording counts. Answer "yes" or "no".
+Respond with JSON only: {{"answer": "yes"}}"""
+
+CONFLICT_SYSTEM = """Fact: {point}
+
+Does the student's answer make a claim about the same thing that is false according to this fact? An answer that is only incomplete, or leaves the fact out, is NOT false. Answer "yes" or "no".
+Respond with JSON only: {{"answer": "no"}}"""
+
 FLASHCARDS_SYSTEM = """You write flashcards for a student from a passage of their own notes.
 
 Write exactly {n} flashcards. Each card has:
@@ -183,8 +195,11 @@ class AiService:
     application passes the configured provider.
     """
 
-    def __init__(self, model: ChatModel) -> None:
+    def __init__(self, model: ChatModel, grader: ChatModel | None = None) -> None:
         self._model = model
+        # Judging answers needs a stronger model than writing them; see
+        # `grader_model` in config.py for the measurement.
+        self._grader = grader or model
 
     # ---- 1. explain ----------------------------------------------------------
 
@@ -294,6 +309,111 @@ class AiService:
         parsed = [step for item in _items(_load_json(raw), "items") if (step := _as_step(item, len(sources)))]
         return ChecklistOut(topic=topic, items=parsed[:items])
 
+    # ---- 6. grade a free-text answer -------------------------------------------
+
+    async def grade_answer(self, question: str, expected: str, answer: str, *, passage: str = "") -> Grade | None:
+        """Compare what the student wrote with the card's reference answer.
+
+        Two narrow steps rather than one broad one. Asked in a single prompt to
+        list what an answer got right, missed and got wrong, llama3.2:3b pulled
+        key points from the passage instead of the reference, filed correct
+        facts under "incorrect", and gave a wrong answer the same grade as a
+        right one. So the reference is first split into its facts, and then
+        each fact is checked on its own — one three-way decision per call,
+        which a small model makes reliably. The splitting is done in code.
+
+        `passage` is accepted for callers that have it, but the facts come from
+        the reference answer: that is what the card asks the student to recall.
+
+        Returns None when the reference is empty, so the caller falls back to
+        the student rating themselves.
+        """
+        points = self._key_points(expected)
+        if not points:
+            return None
+
+        # The facts are independent, so they are checked at once. Ollama runs
+        # parallel requests when it has the memory; when it does not, this
+        # costs nothing over checking them in turn. Measured: 23 s sequential
+        # for a five-fact card.
+        verdicts = await asyncio.gather(
+            *(self._check_point(question, point, answer, expected=expected) for point in points)
+        )
+
+        correct: list[str] = []
+        missing: list[str] = []
+        incorrect: list[str] = []
+        for point, verdict in zip(points, verdicts, strict=True):
+            if verdict == "stated":
+                correct.append(point)
+            elif verdict == "contradicted":
+                incorrect.append(point)
+            else:
+                missing.append(point)
+
+        # Contradicted facts are key points too: they count against coverage.
+        return grade_from(
+            correct=correct,
+            missing=missing + incorrect,
+            incorrect=incorrect,
+            feedback=_feedback(correct, missing, incorrect),
+        )
+
+    @staticmethod
+    def _key_points(expected: str) -> list[str]:
+        """The reference answer's facts, split by its own punctuation.
+
+        Deterministic on purpose. Asked to split the reference, the model gave
+        different facts on different calls and sometimes invented one
+        ("Chloroplasts are organelles"), so the same answer could earn two
+        different grades. A card's back is one or two sentences; its clauses
+        are its facts.
+        """
+        pieces = [p.strip(" .,;:") for p in re.split(r";|,|\.\s+|\.$|\n", expected)]
+        # "…, and pointers to the open-file table" is a fact; its "and" is not.
+        pieces = [re.sub(r"^(and|or|but|also)\s+", "", p, flags=re.IGNORECASE) for p in pieces]
+        return [p for p in pieces if _terms(p)][:6] or [expected.strip()]
+
+    async def _check_point(self, question: str, point: str, answer: str, *, expected: str = "") -> str:
+        """stated, contradicted or not_stated.
+
+        Word overlap decides the clear cases and the model is consulted only
+        where overlap cannot: a paraphrase, or a claim that might be false.
+        Measured on llama3.2:3b, a model-only check both credited facts the
+        answer never mentioned and failed a fact written as a single word, so
+        neither signal alone was trustworthy.
+
+        Terms that already appear in the question are ignored — repeating the
+        question back is not knowing the answer.
+        """
+        asked = _terms(question)
+        wanted = (_terms(point) - asked) or _terms(point)
+        given = _terms(answer)
+        coverage = len(wanted & given) / len(wanted)
+
+        user = [{"role": "user", "content": f"Student's answer: {answer}"}]
+
+        # A wrong claim always brings a term that neither the reference nor the
+        # question contains — "glucose", "father", "lower". Only then is the
+        # model asked whether the answer is false, and it is asked whether or
+        # not the overlap looked good: "towards lower solute concentration"
+        # shares most of its words with "toward the higher solute
+        # concentration" and is still wrong. An answer made only of known words
+        # can be incomplete, but it cannot contradict anything.
+        novel = given - _terms(expected or point) - asked
+        if novel and (given & _terms(point)) and await self._yes(CONFLICT_SYSTEM.format(point=point), user):
+            return "contradicted"
+
+        if coverage >= 0.6:
+            return "stated"
+        if coverage > 0 and await self._yes(STATED_SYSTEM.format(question=question, point=point), user):
+            return "stated"
+        return "not_stated"
+
+    async def _yes(self, system: str, messages: list[Turn]) -> bool:
+        raw = await self._ask(system, messages[0]["content"], json_mode=True, model=self._grader)
+        return str(_load_json(raw).get("answer", "")).strip().lower().startswith("y")
+
     # ---- the streaming variant, for /chat -------------------------------------
 
     async def stream_answer(
@@ -319,7 +439,7 @@ class AiService:
     def _answer_system(self, sources: Sequence[Source]) -> str:
         return ANSWER_SYSTEM.format(refusal=REFUSAL, passages=render_passages(sources))
 
-    async def _ask(self, system: str, user: str, *, json_mode: bool = False) -> str:
+    async def _ask(self, system: str, user: str, *, json_mode: bool = False, model: ChatModel | None = None) -> str:
         """One model call, with both failure modes named.
 
         `asyncio.wait_for` is the outer bound. The HTTP client has its own
@@ -327,21 +447,23 @@ class AiService:
         resetting it — the request would never finish and never fail. This
         caps the whole call regardless of how the bytes arrive.
         """
-        limit = getattr(self._model, "timeout", 0.0) or None
+        chosen = model or self._model
+        limit = getattr(chosen, "timeout", 0.0) or None
         try:
             reply = await asyncio.wait_for(
-                self._model.complete(system, [{"role": "user", "content": user}], json_mode=json_mode),
+                chosen.complete(system, [{"role": "user", "content": user}], json_mode=json_mode),
                 timeout=limit,
             )
         except (TimeoutError, asyncio.TimeoutError, httpx.TimeoutException) as exc:
-            raise self._timeout() from exc
+            raise self._timeout(chosen) from exc
         except (httpx.HTTPError, RuntimeError, OSError) as exc:
             raise AiUnavailable() from exc
         return reply.strip()
 
-    def _timeout(self) -> AiTimeout:
-        seconds = getattr(self._model, "timeout", 0.0)
-        model = getattr(self._model, "model", "the model")
+    def _timeout(self, which: ChatModel | None = None) -> AiTimeout:
+        which = which or self._model
+        seconds = getattr(which, "timeout", 0.0)
+        model = getattr(which, "model", "the model")
         return AiTimeout.after(seconds, model) if seconds else AiTimeout()
 
     @staticmethod
@@ -432,6 +554,73 @@ def _as_question(item: object, source_count: int) -> QuizQuestion | None:
     )
 
 
+def grade_from(*, correct: list[str], missing: list[str], incorrect: list[str], feedback: str = "") -> Grade:
+    """Turn the three lists into a score, a verdict and a suggested rating.
+
+    Kept out of the model on purpose. A small model asked for "a rating from
+    1 to 4" is inconsistent from one call to the next; asked which points were
+    covered, it is far more reliable, and the arithmetic from there is ours.
+
+    - Anything wrong caps the rating at Hard, and at Again when less than half
+      was covered: a confident wrong answer is the case spaced repetition most
+      needs to catch.
+    - All key points and nothing wrong is Good. Never Easy — "easy" in FSRS
+      means instant recall, and a grader reading text cannot see how long the
+      student took.
+    """
+    total = len(correct) + len(missing)
+    score = len(correct) / total if total else 0.0
+
+    if incorrect:
+        rating = 1 if score < 0.5 else 2
+    elif total and not missing:
+        rating = 3
+    elif score >= 0.5:
+        rating = 2
+    else:
+        rating = 1
+
+    verdict = {3: "correct", 2: "partial", 1: "incorrect"}[rating]
+    return Grade(
+        verdict=verdict,
+        score=round(score, 2),
+        correct=correct,
+        missing=missing,
+        incorrect=incorrect,
+        feedback=feedback,
+        suggested_rating=rating,
+    )
+
+
+_STOPWORDS = frozenset(
+    "the a an of and or to in on by is are was were it its their they them that this these those with from "
+    "for as at be been has have had own do does did what which who how why when where not no yes can will "
+    "would should could about into than then there here also only just very more most some any each".split()
+)
+
+
+def _terms(text: str) -> set[str]:
+    """Content words, cut to five letters so "produce" meets "produced" and "producing"."""
+    return {w[:5] for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) > 2 and w not in _STOPWORDS}
+
+
+def _feedback(correct: list[str], missing: list[str], incorrect: list[str]) -> str:
+    """One sentence for the student, built from the lists rather than written by the model."""
+    if incorrect:
+        return "Check this against your notes: " + "; ".join(incorrect) + "."
+    if not missing:
+        return "You covered every point."
+    if not correct:
+        return "Go back over: " + "; ".join(missing) + "."
+    return "Good start. You left out: " + "; ".join(missing) + "."
+
+
+def _strings(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(v).strip()[:300] for v in value if str(v).strip()][:8]
+
+
 def _as_step(item: object, source_count: int) -> ChecklistItem | None:
     """One checklist step, or None when there is no action in it.
 
@@ -487,6 +676,9 @@ def _norm(text: str) -> str:
     return " ".join(text.lower().split()).rstrip(".")
 
 
-def get_ai_service(model: ChatModel = Depends(get_chat_model)) -> AiService:
+def get_ai_service(
+    model: ChatModel = Depends(get_chat_model),
+    grader: ChatModel | None = Depends(get_grader_model),
+) -> AiService:
     """FastAPI dependency. Overriding `get_chat_model` in a test swaps the model."""
-    return AiService(model)
+    return AiService(model, grader)

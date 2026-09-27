@@ -159,6 +159,26 @@ class ReviewRequest(BaseModel):
     rating: int = Field(ge=1, le=4, description="1 again, 2 hard, 3 good, 4 easy")
 
 
+class GradeRequest(BaseModel):
+    answer: str = Field(min_length=1, max_length=2000, description="The student's answer, in their own words")
+
+    @field_validator("answer")
+    @classmethod
+    def not_blank(cls, value: str) -> str:
+        answer = value.strip()
+        if not answer:
+            raise ValueError("answer cannot be empty")
+        return answer
+
+
+class GradeResponse(BaseModel):
+    card_id: str
+    grade: "Grade"
+    expected: str = Field(description="The card's back, shown once the answer has been checked")
+    source_text: str | None = None
+    session_id: str
+
+
 class ReviewLogOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -249,6 +269,25 @@ class ChecklistItem(BaseModel):
 class ChecklistOut(BaseModel):
     topic: str
     items: list[ChecklistItem] = Field(default_factory=list)
+
+
+class Grade(BaseModel):
+    """How a free-text answer compares to what the notes say.
+
+    The model supplies the three lists. The score, verdict and suggested
+    rating are computed from them in code, so the same lists always produce
+    the same rating and the mapping can be tested without a model.
+    """
+
+    verdict: Literal["correct", "partial", "incorrect"]
+    score: float = Field(ge=0, le=1, description="Share of the key points the answer covered")
+    correct: list[str] = Field(default_factory=list, description="Key points the answer got right")
+    missing: list[str] = Field(default_factory=list, description="Key points the answer left out")
+    incorrect: list[str] = Field(default_factory=list, description="Claims in the answer the notes contradict")
+    feedback: str = ""
+    suggested_rating: Literal[1, 2, 3] = Field(
+        description="Again, Hard or Good. Never Easy: the grader cannot tell how quickly you recalled it."
+    )
 
 
 # ---- study history ---------------------------------------------------------------
