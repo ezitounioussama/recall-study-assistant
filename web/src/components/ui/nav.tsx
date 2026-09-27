@@ -93,7 +93,7 @@ const FOOTER_COLUMNS = [
     heading: "Project",
     links: [
       { href: "https://github.com/ezitounioussama/recall-study-assistant", label: "Source" },
-      { href: "/#roadmap", label: "Roadmap" },
+      { href: "/trust", label: "Trust report" },
     ],
   },
 ] as const;

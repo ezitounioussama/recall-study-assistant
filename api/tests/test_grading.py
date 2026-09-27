@@ -8,6 +8,7 @@ saves, and what it refuses to do.
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 
@@ -60,9 +61,10 @@ class TestRating:
         grade = grade_from(correct=["produces ATP"], missing=["by oxidative phosphorylation"], incorrect=[])
         assert (grade.verdict, grade.score, grade.suggested_rating) == ("partial", 0.5, 2)
 
-    def test_less_than_half_is_again(self):
+    def test_less_than_half_is_again_but_still_a_partial_answer(self):
+        """The rating schedules the card; the verdict describes the answer."""
         grade = grade_from(correct=["a"], missing=["b", "c"], incorrect=[])
-        assert grade.suggested_rating == 1 and grade.verdict == "incorrect"
+        assert grade.suggested_rating == 1 and grade.verdict == "partial"
 
     def test_nothing_covered_is_again(self):
         assert grade_from(correct=[], missing=["a", "b"], incorrect=[]).suggested_rating == 1
@@ -74,7 +76,11 @@ class TestRating:
 
     def test_something_wrong_and_little_right_is_again(self):
         grade = grade_from(correct=[], missing=["a"], incorrect=["wrong"])
-        assert grade.suggested_rating == 1
+        assert grade.suggested_rating == 1 and grade.verdict == "incorrect"
+
+    def test_something_wrong_with_under_half_right_is_incorrect(self):
+        grade = grade_from(correct=["a"], missing=["b", "c", "d"], incorrect=["d"])
+        assert grade.verdict == "incorrect"
 
     def test_no_key_points_at_all_is_again_not_a_division_by_zero(self):
         grade = grade_from(correct=[], missing=[], incorrect=[])
@@ -100,7 +106,7 @@ class Judge:
         self.questions: list[tuple[str, str]] = []
 
     async def complete(self, system, messages, *, json_mode: bool = False) -> str:
-        fact = system.split("Fact: ", 1)[1].split("\n", 1)[0]
+        fact = re.search(r"^Fact(?: being checked)?: (.*)$", system, re.MULTILINE).group(1)
         kind = "stated" if "say this fact" in system else "false"
         self.questions.append((kind, fact))
         hits = self.stated if kind == "stated" else self.false

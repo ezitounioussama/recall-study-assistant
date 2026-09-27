@@ -47,10 +47,14 @@ class Settings(BaseSettings):
     ollama_host: str = "http://127.0.0.1:11434"
     embedding_model: str = "nomic-embed-text"
 
-    # ~1800 characters is roughly 450 tokens: large enough that a chunk carries
-    # a whole idea, small enough that a citation points somewhere specific.
-    chunk_chars: int = 1800
-    chunk_overlap_chars: int = 200
+    # ~600 characters, about one paragraph. Measured by the trust report
+    # (api/evaluation): at 1800 a short lecture became a single chunk whose
+    # embedding averaged every topic in it, and three of twelve questions the
+    # notes answer fell under the similarity floor. At 600 it is one of twelve,
+    # and no off-topic question rises above the floor. A smaller chunk also
+    # makes each citation point at one paragraph rather than a page.
+    chunk_chars: int = 600
+    chunk_overlap_chars: int = 100
 
     max_upload_bytes: int = 10 * 1024 * 1024
 

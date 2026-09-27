@@ -50,6 +50,8 @@ Open **http://localhost:3100** and sign in with `demo@recall.study` /
 - [**Product plan**](docs/product-plan.md) — the problem, the user, the five AI features.
 - [**Demo script**](docs/demo-script.md) — a timed five-minute walkthrough.
 - [**Workflow tour**](docs/workflow.md) — the whole product, screenshot by screenshot.
+- [**Trust report**](docs/trust-report.md) — how often it refuses, answers, cites and grades correctly, measured against the real models.
+- [**Built on hackathon day**](docs/hackathon-features.md) — the three features added on 27 September.
 - [**Release checklist**](docs/final-release-checklist.md) — what is verified, and the limitations that remain.
 - [**Design**](docs/design-language.md) and [its divergences](docs/design-divergences.md) — the Apple design language the interface is built to.
 
