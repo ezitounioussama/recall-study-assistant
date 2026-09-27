@@ -1,0 +1,323 @@
+{
+  "questions": [
+    {
+      "q": "What do mitochondria produce?",
+      "covered": true,
+      "expect": [
+        "atp"
+      ]
+    },
+    {
+      "q": "What is special about mitochondrial DNA?",
+      "covered": true,
+      "expect": [
+        "circular",
+        "mother"
+      ]
+    },
+    {
+      "q": "Where do the light-dependent reactions happen?",
+      "covered": true,
+      "expect": [
+        "thylakoid"
+      ]
+    },
+    {
+      "q": "Where does the Calvin cycle run?",
+      "covered": true,
+      "expect": [
+        "stroma"
+      ]
+    },
+    {
+      "q": "What do chloroplasts use to capture light?",
+      "covered": true,
+      "expect": [
+        "chlorophyll"
+      ]
+    },
+    {
+      "q": "How do ions cross the plasma membrane?",
+      "covered": true,
+      "expect": [
+        "channel",
+        "carrier"
+      ]
+    },
+    {
+      "q": "In which direction does water move by osmosis?",
+      "covered": true,
+      "expect": [
+        "higher solute"
+      ]
+    },
+    {
+      "q": "What does a process control block hold?",
+      "covered": true,
+      "expect": [
+        "pid",
+        "cpu state"
+      ]
+    },
+    {
+      "q": "What do the threads of a process share?",
+      "covered": true,
+      "expect": [
+        "address space"
+      ]
+    },
+    {
+      "q": "What happens when a round robin quantum expires?",
+      "covered": true,
+      "expect": [
+        "preempt"
+      ]
+    },
+    {
+      "q": "What does a very long quantum degrade into?",
+      "covered": true,
+      "expect": [
+        "first-come",
+        "first come"
+      ]
+    },
+    {
+      "q": "How does the Completely Fair Scheduler order ready threads?",
+      "covered": true,
+      "expect": [
+        "virtual runtime",
+        "red-black"
+      ]
+    },
+    {
+      "q": "Who painted the Mona Lisa?",
+      "covered": false
+    },
+    {
+      "q": "What is the capital of Australia?",
+      "covered": false
+    },
+    {
+      "q": "How do I bake sourdough bread?",
+      "covered": false
+    },
+    {
+      "q": "Who won the 2018 football World Cup?",
+      "covered": false
+    },
+    {
+      "q": "What is the boiling point of ethanol?",
+      "covered": false
+    },
+    {
+      "q": "Explain the rules of cricket.",
+      "covered": false
+    },
+    {
+      "q": "What is a TCP three-way handshake?",
+      "covered": false
+    },
+    {
+      "q": "What year did the Berlin Wall fall?",
+      "covered": false
+    }
+  ],
+  "answers": [
+    {
+      "q": "What do mitochondria produce, and what is special about their DNA?",
+      "ref": "ATP, through oxidative phosphorylation; they carry their own circular DNA, inherited from the mother.",
+      "a": "They make ATP by oxidative phosphorylation, and they have their own circular DNA that comes from your mother.",
+      "expect": "correct",
+      "set": "development"
+    },
+    {
+      "q": "What do mitochondria produce, and what is special about their DNA?",
+      "ref": "ATP, through oxidative phosphorylation; they carry their own circular DNA, inherited from the mother.",
+      "a": "They produce ATP.",
+      "expect": "partial",
+      "set": "development"
+    },
+    {
+      "q": "What do mitochondria produce, and what is special about their DNA?",
+      "ref": "ATP, through oxidative phosphorylation; they carry their own circular DNA, inherited from the mother.",
+      "a": "They produce glucose using chlorophyll, and their DNA comes from the father.",
+      "expect": "incorrect",
+      "set": "development"
+    },
+    {
+      "q": "What do mitochondria produce, and what is special about their DNA?",
+      "ref": "ATP, through oxidative phosphorylation; they carry their own circular DNA, inherited from the mother.",
+      "a": "I don't remember.",
+      "expect": "incorrect",
+      "set": "development"
+    },
+    {
+      "q": "Where do the light-dependent reactions of photosynthesis happen?",
+      "ref": "In the thylakoid membranes of the chloroplast.",
+      "a": "on the thylakoid membranes inside chloroplasts",
+      "expect": "correct",
+      "set": "development"
+    },
+    {
+      "q": "Where do the light-dependent reactions of photosynthesis happen?",
+      "ref": "In the thylakoid membranes of the chloroplast.",
+      "a": "in the mitochondrial matrix",
+      "expect": "incorrect",
+      "set": "development"
+    },
+    {
+      "q": "How does water cross the cell membrane?",
+      "ref": "By osmosis, toward the higher solute concentration.",
+      "a": "osmosis \u2014 it moves to where the solute concentration is higher",
+      "expect": "correct",
+      "set": "development"
+    },
+    {
+      "q": "How does water cross the cell membrane?",
+      "ref": "By osmosis, toward the higher solute concentration.",
+      "a": "by osmosis",
+      "expect": "partial",
+      "set": "development"
+    },
+    {
+      "q": "How does water cross the cell membrane?",
+      "ref": "By osmosis, toward the higher solute concentration.",
+      "a": "it is pumped by ATP-driven carrier proteins towards lower solute concentration",
+      "expect": "incorrect",
+      "set": "development"
+    },
+    {
+      "q": "What does a process control block hold?",
+      "ref": "The PID, the saved CPU state, the scheduling priority and accounting information.",
+      "a": "the PID, saved CPU state, scheduling priority and accounting info",
+      "expect": "correct",
+      "set": "development"
+    },
+    {
+      "q": "What does a process control block hold?",
+      "ref": "The PID, the saved CPU state, the scheduling priority and accounting information.",
+      "a": "the PID and the scheduling priority",
+      "expect": "partial",
+      "set": "development"
+    },
+    {
+      "q": "What does a process control block hold?",
+      "ref": "The PID, the saved CPU state, the scheduling priority and accounting information.",
+      "a": "the user's files and the browser history",
+      "expect": "incorrect",
+      "set": "development"
+    },
+    {
+      "q": "What do the threads of one process share?",
+      "ref": "The address space, the heap and the open files.",
+      "a": "they share the address space, the heap and open files",
+      "expect": "correct",
+      "set": "development"
+    },
+    {
+      "q": "What do the threads of one process share?",
+      "ref": "The address space, the heap and the open files.",
+      "a": "each thread has its own separate address space",
+      "expect": "incorrect",
+      "set": "development"
+    },
+    {
+      "q": "What does a round robin scheduler do when a quantum expires?",
+      "ref": "It preempts the running thread.",
+      "a": "it preempts the thread that was running",
+      "expect": "correct",
+      "set": "development"
+    },
+    {
+      "q": "What does a round robin scheduler do when a quantum expires?",
+      "ref": "It preempts the running thread.",
+      "a": "it lets the thread keep running until it finishes",
+      "expect": "incorrect",
+      "set": "development"
+    },
+    {
+      "q": "Where does the Calvin cycle run?",
+      "ref": "In the stroma of the chloroplast.",
+      "a": "in the stroma",
+      "expect": "correct",
+      "set": "held-out"
+    },
+    {
+      "q": "Where does the Calvin cycle run?",
+      "ref": "In the stroma of the chloroplast.",
+      "a": "in the thylakoid membranes",
+      "expect": "incorrect",
+      "set": "held-out"
+    },
+    {
+      "q": "What do chloroplasts use to capture light energy?",
+      "ref": "Chlorophyll.",
+      "a": "they use chlorophyll pigment",
+      "expect": "correct",
+      "set": "held-out"
+    },
+    {
+      "q": "What do chloroplasts use to capture light energy?",
+      "ref": "Chlorophyll.",
+      "a": "they use cristae",
+      "expect": "incorrect",
+      "set": "held-out"
+    },
+    {
+      "q": "How do small non-polar molecules cross the plasma membrane?",
+      "ref": "They diffuse through it directly.",
+      "a": "they just diffuse straight through the membrane",
+      "expect": "correct",
+      "set": "held-out"
+    },
+    {
+      "q": "How do small non-polar molecules cross the plasma membrane?",
+      "ref": "They diffuse through it directly.",
+      "a": "they need carrier proteins to get across",
+      "expect": "incorrect",
+      "set": "held-out"
+    },
+    {
+      "q": "What is the inner mitochondrial membrane folded into?",
+      "ref": "Cristae.",
+      "a": "cristae",
+      "expect": "correct",
+      "set": "held-out"
+    },
+    {
+      "q": "How much cheaper is creating a thread than creating a process on Linux?",
+      "ref": "Roughly an order of magnitude.",
+      "a": "about ten times cheaper",
+      "expect": "correct",
+      "set": "held-out"
+    },
+    {
+      "q": "How much cheaper is creating a thread than creating a process on Linux?",
+      "ref": "Roughly an order of magnitude.",
+      "a": "it costs exactly the same",
+      "expect": "incorrect",
+      "set": "held-out"
+    },
+    {
+      "q": "What does each thread have of its own?",
+      "ref": "Its own program counter, registers and stack.",
+      "a": "its own stack",
+      "expect": "partial",
+      "set": "held-out"
+    },
+    {
+      "q": "What does each thread have of its own?",
+      "ref": "Its own program counter, registers and stack.",
+      "a": "its own program counter, its registers and its stack",
+      "expect": "correct",
+      "set": "held-out"
+    },
+    {
+      "q": "What does a process include?",
+      "ref": "The program counter and registers, the stack, the heap, open file descriptors and its address space.",
+      "a": "the stack and the heap",
+      "expect": "partial",
+      "set": "held-out"
+    }
+  ]
+}

@@ -168,9 +168,11 @@ Fact: {point}
 Does the student's answer say this fact? Different wording counts. Answer "yes" or "no".
 Respond with JSON only: {{"answer": "yes"}}"""
 
-CONFLICT_SYSTEM = """Fact: {point}
+CONFLICT_SYSTEM = """Question: {question}
+Correct answer: {expected}
+Fact being checked: {point}
 
-Does the student's answer make a claim about the same thing that is false according to this fact? An answer that is only incomplete, or leaves the fact out, is NOT false. Answer "yes" or "no".
+Does the student's answer claim something that is false according to the correct answer — for example the opposite of the fact, or a different thing in its place? An answer that is only incomplete, or leaves the fact out, is NOT false. Answer "yes" or "no".
 Respond with JSON only: {{"answer": "no"}}"""
 
 FLASHCARDS_SYSTEM = """You write flashcards for a student from a passage of their own notes.
@@ -377,8 +379,9 @@ class AiService:
     async def _check_point(self, question: str, point: str, answer: str, *, expected: str = "") -> str:
         """stated, contradicted or not_stated.
 
-        Word overlap decides the clear cases and the model is consulted only
-        where overlap cannot: a paraphrase, or a claim that might be false.
+        Word overlap decides the clearest case — every content word present —
+        and the model is consulted for the rest: a paraphrase, or a claim that
+        might be false.
         Measured on llama3.2:3b, a model-only check both credited facts the
         answer never mentioned and failed a fact written as a single word, so
         neither signal alone was trustworthy.
@@ -401,10 +404,16 @@ class AiService:
         # concentration" and is still wrong. An answer made only of known words
         # can be incomplete, but it cannot contradict anything.
         novel = given - _terms(expected or point) - asked
-        if novel and (given & _terms(point)) and await self._yes(CONFLICT_SYSTEM.format(point=point), user):
+        if novel and (given & _terms(point)) and await self._yes(
+            CONFLICT_SYSTEM.format(question=question, expected=expected or point, point=point), user
+        ):
             return "contradicted"
 
-        if coverage >= 0.6:
+        # Overlap settles it only when every content word of the fact is there.
+        # At a 0.6 threshold "it lets the thread keep running" passed for "it
+        # preempts the running thread": the object words matched, the verb that
+        # carried the meaning did not.
+        if coverage == 1.0:
             return "stated"
         if coverage > 0 and await self._yes(STATED_SYSTEM.format(question=question, point=point), user):
             return "stated"
@@ -580,7 +589,16 @@ def grade_from(*, correct: list[str], missing: list[str], incorrect: list[str], 
     else:
         rating = 1
 
-    verdict = {3: "correct", 2: "partial", 1: "incorrect"}[rating]
+    # The verdict describes the answer, the rating schedules the card, and
+    # they are not the same scale: "They produce ATP" covers one fact in four,
+    # which is Again for scheduling but plainly a partial answer, not a wrong
+    # one.
+    if rating == 3:
+        verdict = "correct"
+    elif not correct or (incorrect and score < 0.5):
+        verdict = "incorrect"
+    else:
+        verdict = "partial"
     return Grade(
         verdict=verdict,
         score=round(score, 2),
@@ -595,7 +613,10 @@ def grade_from(*, correct: list[str], missing: list[str], incorrect: list[str], 
 _STOPWORDS = frozenset(
     "the a an of and or to in on by is are was were it its their they them that this these those with from "
     "for as at be been has have had own do does did what which who how why when where not no yes can will "
-    "would should could about into than then there here also only just very more most some any each".split()
+    "would should could about into than then there here also only just very more most some any each "
+    # Prepositions carry no fact: "via oxidative phosphorylation" says what
+    # "through oxidative phosphorylation" says.
+    "through via within inside onto upon across".split()
 )
 
 

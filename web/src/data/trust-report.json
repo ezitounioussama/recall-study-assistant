@@ -1,0 +1,569 @@
+{
+  "generated_at": "2026-09-27T09:56:11+00:00",
+  "commit": "5c24e73",
+  "models": {
+    "embedding": "nomic-embed-text",
+    "chat": "llama3.2:3b",
+    "grader": "qwen3:8b"
+  },
+  "similarity_floor": 0.6,
+  "corpus": [
+    "cell-biology.md",
+    "operating-systems.md"
+  ],
+  "summary": {
+    "refusal": {
+      "off_topic_refused": {
+        "n": 8,
+        "of": 8,
+        "rate": 1.0
+      },
+      "off_topic_refused_without_model": {
+        "n": 8,
+        "of": 8,
+        "rate": 1.0
+      },
+      "covered_wrongly_refused": {
+        "n": 1,
+        "of": 12,
+        "rate": 0.083
+      }
+    },
+    "answers": {
+      "covered_answered_with_expected_fact": {
+        "n": 11,
+        "of": 12,
+        "rate": 0.917
+      },
+      "grounded_answers_citing_a_passage": {
+        "n": 8,
+        "of": 11,
+        "rate": 0.727
+      },
+      "answers_where_model_invented_a_citation": {
+        "n": 2,
+        "of": 20,
+        "rate": 0.1
+      },
+      "invented_citations_shown_to_student": 0
+    },
+    "grader": {
+      "exact_verdict": {
+        "n": 26,
+        "of": 28,
+        "rate": 0.929
+      },
+      "wrong_answer_graded_correct": {
+        "n": 0,
+        "of": 28,
+        "rate": 0.0
+      },
+      "confusion": {
+        "correct": {
+          "correct": 11,
+          "partial": 0,
+          "incorrect": 1
+        },
+        "partial": {
+          "correct": 0,
+          "partial": 4,
+          "incorrect": 1
+        },
+        "incorrect": {
+          "correct": 0,
+          "partial": 0,
+          "incorrect": 11
+        }
+      },
+      "development": {
+        "exact_verdict": {
+          "n": 16,
+          "of": 16,
+          "rate": 1.0
+        },
+        "wrong_answer_graded_correct": {
+          "n": 0,
+          "of": 16,
+          "rate": 0.0
+        }
+      },
+      "held_out": {
+        "exact_verdict": {
+          "n": 10,
+          "of": 12,
+          "rate": 0.833
+        },
+        "wrong_answer_graded_correct": {
+          "n": 0,
+          "of": 12,
+          "rate": 0.0
+        }
+      }
+    },
+    "latency_seconds": {
+      "chat_median": 2.4,
+      "refusal_median": 0.07,
+      "grade_median": 0.0
+    }
+  },
+  "questions": [
+    {
+      "question": "What do mitochondria produce?",
+      "covered": true,
+      "sources": 2,
+      "grounded": true,
+      "mentions_expected": true,
+      "invented_citations": [],
+      "answer": "The mitochondria produce ATP [1].",
+      "seconds": 7.35
+    },
+    {
+      "question": "What is special about mitochondrial DNA?",
+      "covered": true,
+      "sources": 1,
+      "grounded": true,
+      "mentions_expected": true,
+      "invented_citations": [],
+      "answer": "It is inherited from the mother.",
+      "seconds": 1.61
+    },
+    {
+      "question": "Where do the light-dependent reactions happen?",
+      "covered": true,
+      "sources": 2,
+      "grounded": true,
+      "mentions_expected": true,
+      "invented_citations": [],
+      "answer": "The light-dependent reactions happen in the thylakoid membranes [2].",
+      "seconds": 2.39
+    },
+    {
+      "question": "Where does the Calvin cycle run?",
+      "covered": true,
+      "sources": 1,
+      "grounded": true,
+      "mentions_expected": true,
+      "invented_citations": [],
+      "answer": "The Calvin cycle runs in the stroma [1].",
+      "seconds": 1.93
+    },
+    {
+      "question": "What do chloroplasts use to capture light?",
+      "covered": true,
+      "sources": 2,
+      "grounded": true,
+      "mentions_expected": true,
+      "invented_citations": [],
+      "answer": "Chlorophyll [2].",
+      "seconds": 2.29
+    },
+    {
+      "question": "How do ions cross the plasma membrane?",
+      "covered": true,
+      "sources": 1,
+      "grounded": true,
+      "mentions_expected": true,
+      "invented_citations": [
+        2
+      ],
+      "answer": "Ions cross the plasma membrane through channel or carrier proteins [2].",
+      "seconds": 2.3
+    },
+    {
+      "question": "In which direction does water move by osmosis?",
+      "covered": true,
+      "sources": 1,
+      "grounded": true,
+      "mentions_expected": true,
+      "invented_citations": [
+        2
+      ],
+      "answer": "Water moves by osmosis from an area of lower solute concentration to an area of higher solute concentration [2].",
+      "seconds": 3.07
+    },
+    {
+      "question": "What does a process control block hold?",
+      "covered": true,
+      "sources": 2,
+      "grounded": true,
+      "mentions_expected": true,
+      "invented_citations": [],
+      "answer": "A process control block (PCB) holds the process identifier (PID), the saved CPU state, the scheduling priority and accounting information [1].",
+      "seconds": 4.54
+    },
+    {
+      "question": "What do the threads of a process share?",
+      "covered": true,
+      "sources": 3,
+      "grounded": true,
+      "mentions_expected": true,
+      "invented_citations": [],
+      "answer": "The threads of a process share the address space, the heap, and the open files. [1]",
+      "seconds": 4.13
+    },
+    {
+      "question": "What happens when a round robin quantum expires?",
+      "covered": true,
+      "sources": 1,
+      "grounded": true,
+      "mentions_expected": true,
+      "invented_citations": [],
+      "answer": "When a round robin quantum expires, the thread is preempted [1].",
+      "seconds": 2.38
+    },
+    {
+      "question": "What does a very long quantum degrade into?",
+      "covered": true,
+      "sources": 0,
+      "grounded": false,
+      "mentions_expected": false,
+      "invented_citations": [],
+      "answer": "I can't find that in your notes.",
+      "seconds": 0.07
+    },
+    {
+      "question": "How does the Completely Fair Scheduler order ready threads?",
+      "covered": true,
+      "sources": 2,
+      "grounded": true,
+      "mentions_expected": true,
+      "invented_citations": [],
+      "answer": "The Completely Fair Scheduler orders ready threads in a red-black tree ordered by virtual runtime [1].",
+      "seconds": 2.83
+    },
+    {
+      "question": "Who painted the Mona Lisa?",
+      "covered": false,
+      "sources": 0,
+      "grounded": false,
+      "mentions_expected": false,
+      "invented_citations": [],
+      "answer": "I can't find that in your notes.",
+      "seconds": 0.07
+    },
+    {
+      "question": "What is the capital of Australia?",
+      "covered": false,
+      "sources": 0,
+      "grounded": false,
+      "mentions_expected": false,
+      "invented_citations": [],
+      "answer": "I can't find that in your notes.",
+      "seconds": 0.07
+    },
+    {
+      "question": "How do I bake sourdough bread?",
+      "covered": false,
+      "sources": 0,
+      "grounded": false,
+      "mentions_expected": false,
+      "invented_citations": [],
+      "answer": "I can't find that in your notes.",
+      "seconds": 0.07
+    },
+    {
+      "question": "Who won the 2018 football World Cup?",
+      "covered": false,
+      "sources": 0,
+      "grounded": false,
+      "mentions_expected": false,
+      "invented_citations": [],
+      "answer": "I can't find that in your notes.",
+      "seconds": 0.07
+    },
+    {
+      "question": "What is the boiling point of ethanol?",
+      "covered": false,
+      "sources": 0,
+      "grounded": false,
+      "mentions_expected": false,
+      "invented_citations": [],
+      "answer": "I can't find that in your notes.",
+      "seconds": 0.07
+    },
+    {
+      "question": "Explain the rules of cricket.",
+      "covered": false,
+      "sources": 0,
+      "grounded": false,
+      "mentions_expected": false,
+      "invented_citations": [],
+      "answer": "I can't find that in your notes.",
+      "seconds": 0.06
+    },
+    {
+      "question": "What is a TCP three-way handshake?",
+      "covered": false,
+      "sources": 0,
+      "grounded": false,
+      "mentions_expected": false,
+      "invented_citations": [],
+      "answer": "I can't find that in your notes.",
+      "seconds": 0.06
+    },
+    {
+      "question": "What year did the Berlin Wall fall?",
+      "covered": false,
+      "sources": 0,
+      "grounded": false,
+      "mentions_expected": false,
+      "invented_citations": [],
+      "answer": "I can't find that in your notes.",
+      "seconds": 0.06
+    }
+  ],
+  "grades": [
+    {
+      "question": "What do mitochondria produce, and what is special about their DNA?",
+      "answer": "They make ATP by oxidative phosphorylation, and they have their own circular DNA that comes from your mother.",
+      "expected": "correct",
+      "verdict": "correct",
+      "rating": 3,
+      "seconds": 25.72,
+      "set": "development"
+    },
+    {
+      "question": "What do mitochondria produce, and what is special about their DNA?",
+      "answer": "They produce ATP.",
+      "expected": "partial",
+      "verdict": "partial",
+      "rating": 1,
+      "seconds": 0.0,
+      "set": "development"
+    },
+    {
+      "question": "What do mitochondria produce, and what is special about their DNA?",
+      "answer": "They produce glucose using chlorophyll, and their DNA comes from the father.",
+      "expected": "incorrect",
+      "verdict": "incorrect",
+      "rating": 1,
+      "seconds": 2.21,
+      "set": "development"
+    },
+    {
+      "question": "What do mitochondria produce, and what is special about their DNA?",
+      "answer": "I don't remember.",
+      "expected": "incorrect",
+      "verdict": "incorrect",
+      "rating": 1,
+      "seconds": 0.0,
+      "set": "development"
+    },
+    {
+      "question": "Where do the light-dependent reactions of photosynthesis happen?",
+      "answer": "on the thylakoid membranes inside chloroplasts",
+      "expected": "correct",
+      "verdict": "correct",
+      "rating": 3,
+      "seconds": 0.0,
+      "set": "development"
+    },
+    {
+      "question": "Where do the light-dependent reactions of photosynthesis happen?",
+      "answer": "in the mitochondrial matrix",
+      "expected": "incorrect",
+      "verdict": "incorrect",
+      "rating": 1,
+      "seconds": 0.0,
+      "set": "development"
+    },
+    {
+      "question": "How does water cross the cell membrane?",
+      "answer": "osmosis \u2014 it moves to where the solute concentration is higher",
+      "expected": "correct",
+      "verdict": "correct",
+      "rating": 3,
+      "seconds": 9.99,
+      "set": "development"
+    },
+    {
+      "question": "How does water cross the cell membrane?",
+      "answer": "by osmosis",
+      "expected": "partial",
+      "verdict": "partial",
+      "rating": 2,
+      "seconds": 0.0,
+      "set": "development"
+    },
+    {
+      "question": "How does water cross the cell membrane?",
+      "answer": "it is pumped by ATP-driven carrier proteins towards lower solute concentration",
+      "expected": "incorrect",
+      "verdict": "incorrect",
+      "rating": 1,
+      "seconds": 2.19,
+      "set": "development"
+    },
+    {
+      "question": "What does a process control block hold?",
+      "answer": "the PID, saved CPU state, scheduling priority and accounting info",
+      "expected": "correct",
+      "verdict": "correct",
+      "rating": 3,
+      "seconds": 13.34,
+      "set": "development"
+    },
+    {
+      "question": "What does a process control block hold?",
+      "answer": "the PID and the scheduling priority",
+      "expected": "partial",
+      "verdict": "partial",
+      "rating": 1,
+      "seconds": 2.16,
+      "set": "development"
+    },
+    {
+      "question": "What does a process control block hold?",
+      "answer": "the user's files and the browser history",
+      "expected": "incorrect",
+      "verdict": "incorrect",
+      "rating": 1,
+      "seconds": 0.0,
+      "set": "development"
+    },
+    {
+      "question": "What do the threads of one process share?",
+      "answer": "they share the address space, the heap and open files",
+      "expected": "correct",
+      "verdict": "correct",
+      "rating": 3,
+      "seconds": 0.0,
+      "set": "development"
+    },
+    {
+      "question": "What do the threads of one process share?",
+      "answer": "each thread has its own separate address space",
+      "expected": "incorrect",
+      "verdict": "incorrect",
+      "rating": 1,
+      "seconds": 3.33,
+      "set": "development"
+    },
+    {
+      "question": "What does a round robin scheduler do when a quantum expires?",
+      "answer": "it preempts the thread that was running",
+      "expected": "correct",
+      "verdict": "correct",
+      "rating": 3,
+      "seconds": 0.0,
+      "set": "development"
+    },
+    {
+      "question": "What does a round robin scheduler do when a quantum expires?",
+      "answer": "it lets the thread keep running until it finishes",
+      "expected": "incorrect",
+      "verdict": "incorrect",
+      "rating": 1,
+      "seconds": 3.95,
+      "set": "development"
+    },
+    {
+      "question": "Where does the Calvin cycle run?",
+      "answer": "in the stroma",
+      "expected": "correct",
+      "verdict": "correct",
+      "rating": 3,
+      "seconds": 3.12,
+      "set": "held-out"
+    },
+    {
+      "question": "Where does the Calvin cycle run?",
+      "answer": "in the thylakoid membranes",
+      "expected": "incorrect",
+      "verdict": "incorrect",
+      "rating": 1,
+      "seconds": 0.0,
+      "set": "held-out"
+    },
+    {
+      "question": "What do chloroplasts use to capture light energy?",
+      "answer": "they use chlorophyll pigment",
+      "expected": "correct",
+      "verdict": "correct",
+      "rating": 3,
+      "seconds": 3.34,
+      "set": "held-out"
+    },
+    {
+      "question": "What do chloroplasts use to capture light energy?",
+      "answer": "they use cristae",
+      "expected": "incorrect",
+      "verdict": "incorrect",
+      "rating": 1,
+      "seconds": 0.0,
+      "set": "held-out"
+    },
+    {
+      "question": "How do small non-polar molecules cross the plasma membrane?",
+      "answer": "they just diffuse straight through the membrane",
+      "expected": "correct",
+      "verdict": "correct",
+      "rating": 3,
+      "seconds": 6.52,
+      "set": "held-out"
+    },
+    {
+      "question": "How do small non-polar molecules cross the plasma membrane?",
+      "answer": "they need carrier proteins to get across",
+      "expected": "incorrect",
+      "verdict": "incorrect",
+      "rating": 1,
+      "seconds": 0.0,
+      "set": "held-out"
+    },
+    {
+      "question": "What is the inner mitochondrial membrane folded into?",
+      "answer": "cristae",
+      "expected": "correct",
+      "verdict": "correct",
+      "rating": 3,
+      "seconds": 0.0,
+      "set": "held-out"
+    },
+    {
+      "question": "How much cheaper is creating a thread than creating a process on Linux?",
+      "answer": "about ten times cheaper",
+      "expected": "correct",
+      "verdict": "incorrect",
+      "rating": 1,
+      "seconds": 0.0,
+      "set": "held-out"
+    },
+    {
+      "question": "How much cheaper is creating a thread than creating a process on Linux?",
+      "answer": "it costs exactly the same",
+      "expected": "incorrect",
+      "verdict": "incorrect",
+      "rating": 1,
+      "seconds": 0.0,
+      "set": "held-out"
+    },
+    {
+      "question": "What does each thread have of its own?",
+      "answer": "its own stack",
+      "expected": "partial",
+      "verdict": "incorrect",
+      "rating": 1,
+      "seconds": 3.12,
+      "set": "held-out"
+    },
+    {
+      "question": "What does each thread have of its own?",
+      "answer": "its own program counter, its registers and its stack",
+      "expected": "correct",
+      "verdict": "correct",
+      "rating": 3,
+      "seconds": 0.0,
+      "set": "held-out"
+    },
+    {
+      "question": "What does a process include?",
+      "answer": "the stack and the heap",
+      "expected": "partial",
+      "verdict": "partial",
+      "rating": 2,
+      "seconds": 0.0,
+      "set": "held-out"
+    }
+  ]
+}

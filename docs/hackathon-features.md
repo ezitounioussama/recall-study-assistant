@@ -55,3 +55,46 @@ answer ("passed down maternally" for "inherited from the mother") counts as
 missing. A test pins that behaviour so any change to it is deliberate.
 
 `POST /cards/{id}/grade` · 32 tests in `api/tests/test_grading.py`.
+
+## 2. The trust report
+
+Most AI demos say they are accurate. This one measures it.
+`python -m evaluation.run` builds a scratch database, uploads a fixed corpus
+with real embeddings, asks 20 labelled questions through the real `/chat`
+endpoint (12 the notes answer, 8 they don't), grades 28 labelled answers with
+the real grader, and writes the numbers to
+[`docs/trust-report.md`](trust-report.md) and to the app's
+[`/trust`](http://localhost:3100/trust) page. Nothing is mocked.
+
+![the trust page](screens/hackathon/trust-report.png)
+
+**It found real problems, and they were fixed before the numbers were
+published.** The first run:
+
+| | First run | After fixes |
+|---|---|---|
+| Off-topic questions refused | 8 / 8 | 8 / 8 |
+| Covered questions wrongly refused | 3 / 12 | **1 / 12** |
+| Covered questions answered with the right fact | 9 / 12 | **11 / 12** |
+| Answers graded with the right verdict (development set) | 11 / 16 | 16 / 16 |
+| Wrong answers graded as correct | 1 / 16 | **0 / 28** |
+
+- *Wrong refusals* came from chunking. At 1800 characters a short lecture was
+  a single chunk whose embedding averaged every topic in it, so "Where does
+  the Calvin cycle run?" scored 0.552, under the 0.6 floor. Measured at four
+  sizes, 600 characters took it from three misses to one without letting any
+  off-topic question over the floor.
+- *Grading errors* came from the contradiction check seeing a fact ("The
+  address space") without the question it answered, and from word overlap
+  passing "keep running" for "preempts the running thread". The check now gets
+  the question and the full answer, and overlap alone decides only when every
+  content word of a fact is present.
+
+Because the grader was fixed using those sixteen answers, they now flatter
+it. So **twelve held-out answers** were written after the last change and run
+once: **10 / 12 correct, and no wrong answer graded as right.** The two misses
+are the known limits — a paraphrase with no word in common ("ten times" for
+"an order of magnitude") and a fact that bundles two things ("registers and
+stack"). They were left unfixed so the held-out number stays honest.
+
+5 tests on the report's own arithmetic in `api/tests/test_evaluation_metrics.py`.
